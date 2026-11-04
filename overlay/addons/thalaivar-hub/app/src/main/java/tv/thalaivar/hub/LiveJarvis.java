@@ -33,8 +33,6 @@ final class LiveJarvis {
     interface Listener {
         /** The words spoken so far in this answer. */
         void words(String soFar);
-        /** A TV action the model asked for. */
-        void tool(String name, JSONObject args);
         void done(String said);
         /** No answer could be had this way: the caller falls back to the plain text model. */
         void failed();
@@ -170,13 +168,25 @@ final class LiveJarvis {
 
     private static JSONObject setup(String model, List<String> apps) throws Exception {
         JSONArray fns = new JSONArray()
-                .put(fn("play_video", "Play a song, songs, a trailer, a scene or any video on the TV, full screen.", "query",
-                        "What to play, e.g. \"Anirudh songs\" or \"Jailer 2 trailer\"."))
-                .put(fn("open_app", "Open an app installed on the TV.", "name", "The app's name, e.g. Netflix."))
-                .put(fn("open_film", "Open one of Rajinikanth's films in the TV's film guide.", "title", "The film's title."))
-                .put(fn("show", "Open one of the TV's own screens.", "screen", "One of: news, photos, screensaver, jktube."))
+                .put(fn("play_video", "Play a song, songs, a trailer, a scene or any video on the TV, full screen, in JK Tube.",
+                        "query", "STRING", "What to play, e.g. \"Anirudh songs\" or \"Jailer 2 trailer\"."))
+                .put(fn("search_videos", "Show video search results on the TV to choose from (when the owner wants to browse, not play).",
+                        "query", "STRING", "What to search for."))
+                .put(fn("open_app", "Open an app installed on the TV.", "name", "STRING", "The app's name, e.g. Netflix."))
+                .put(fn("open_film", "Open one of Rajinikanth's films in the TV's film guide.", "title", "STRING", "The film's title."))
                 .put(fn("film_facts", "Exact facts about one of Rajinikanth's films from the TV's film database: release, "
-                        + "director, music, full cast with their roles (heroine, villain…), runtime and story.", "title", "The film's title."));
+                        + "director, music, full cast with their roles (heroine, villain…), runtime and story.", "title", "STRING", "The film's title."))
+                .put(fn("open_screen", "Open a screen of THALAIVAR TV.", "screen", "STRING", "One of: home, cinema, my_movies, "
+                        + "entertainment, apps, jk_tube, film_search, news, photos, moments, wallpapers, screensaver, settings, tv_settings."))
+                .put(fn2("remote_key", "Press a button on the TV remote, once or several times: navigate, select, go back or "
+                        + "home, control playback (in any app), volume and mute.", "key", "STRING", "One of: up, down, left, right, ok, "
+                        + "back, home, recents, tv_menu, play_pause, play, pause, stop, next, previous, rewind, fast_forward, mute, "
+                        + "volume_up, volume_down.", "times", "INTEGER", "How many presses, 1 to 20 (default 1)."))
+                .put(fn("set_volume", "Set the TV's volume to a level.", "percent", "INTEGER", "0 to 100."))
+                .put(fn0("tv_power", "Put the TV in standby (switch it off). Only when the owner clearly asks to turn the TV off."))
+                .put(fn("sleep_timer", "Switch the TV off after some minutes; 0 cancels the timer.", "minutes", "INTEGER", "0 to 240."))
+                .put(fn0("tv_status", "What is happening on the TV now: screen on or off, volume, what JK Tube is playing, "
+                        + "which app is open, the sleep timer."));
         JSONObject setup = new JSONObject()
                 .put("model", "models/" + model)
                 .put("generationConfig", new JSONObject()
@@ -191,11 +201,23 @@ final class LiveJarvis {
         return new JSONObject().put("setup", setup);
     }
 
-    private static JSONObject fn(String name, String what, String arg, String argWhat) throws Exception {
+    private static JSONObject fn(String name, String what, String arg, String type, String argWhat) throws Exception {
         return new JSONObject().put("name", name).put("description", what)
                 .put("parameters", new JSONObject().put("type", "OBJECT")
-                        .put("properties", new JSONObject().put(arg, new JSONObject().put("type", "STRING").put("description", argWhat)))
+                        .put("properties", new JSONObject().put(arg, new JSONObject().put("type", type).put("description", argWhat)))
                         .put("required", new JSONArray().put(arg)));
+    }
+
+    /** A tool with a required argument and an optional second one. */
+    private static JSONObject fn2(String name, String what, String arg, String type, String argWhat,
+                                  String opt, String optType, String optWhat) throws Exception {
+        JSONObject f = fn(name, what, arg, type, argWhat);
+        f.getJSONObject("parameters").getJSONObject("properties").put(opt, new JSONObject().put("type", optType).put("description", optWhat));
+        return f;
+    }
+
+    private static JSONObject fn0(String name, String what) throws Exception {
+        return new JSONObject().put("name", name).put("description", what);
     }
 
     private static String system(List<String> apps) {
@@ -207,8 +229,12 @@ final class LiveJarvis {
                 + "1. Answer exactly the question that was asked, first and directly, in one or two short spoken sentences. "
                 + "No small talk, no unrelated facts, no follow-up questions unless something is unclear.\n"
                 + "2. Asked for a dialogue, a fact or an opinion: say it. Never play or open something instead of answering.\n"
-                + "3. Use a tool only when the owner asks to play, watch, listen to, open or show something. Then call the tool "
-                + "and confirm in a few words.\n"
+                + "3. You control the whole TV with your tools: playing anything, apps, the remote's buttons (navigation, "
+                + "OK, back, home, play/pause, next, rewind, mute), volume levels, standby, a sleep timer and THALAIVAR TV's "
+                + "screens. Whenever the owner asks for any of it, call the tools (several in a row if needed), then confirm "
+                + "in a few words. Ask what is on or playing, or the volume: use tv_status. Never claim you did something "
+                + "you didn't call a tool for. Say nothing before a tool call; confirm once, after it.\n"
+                + "3b. Use tools only for requests; a question gets a spoken answer, not an action.\n"
                 + "4. Reply in the owner's language: English gets English; Tamil or Tanglish gets natural Chennai Tanglish.\n"
                 + "5. Any question about a Rajinikanth film (director, music, heroine, villain, cast, roles, release, story): "
                 + "call film_facts first and answer only from what it returns. Do not web-search for film facts.\n"
@@ -250,13 +276,12 @@ final class LiveJarvis {
                 JSONObject call = calls.getJSONObject(i);
                 String name = call.optString("name");
                 JSONObject args = call.optJSONObject("args") == null ? new JSONObject() : call.optJSONObject("args");
-                String result = "Done on the TV.";
-                if ("film_facts".equals(name)) {
-                    String f = appContext == null ? null : FilmAnswer.facts(appContext, args.optString("title"));
-                    result = f == null ? "That film isn't in the TV's database." : f;
-                } else if (l != null && !skipOld) {
-                    MAIN.post(() -> l.tool(name, args));
-                }
+                // the old answer's actions are dropped once a new question has come in
+                String result = skipOld || appContext == null ? "Skipped." : JarvisBrain.tool(appContext, name, args);
+                // it already announced the action before calling the tool: one confirmation is enough
+                boolean info = "tv_status".equals(name) || "film_facts".equals(name);
+                if (!info && said.length() > 0) result += " You have already told the owner; say nothing more about it.";
+                Log.i(TAG, "tool " + name + " " + args + " -> " + result.split("\\.", 2)[0]);
                 answers.put(new JSONObject().put("id", call.optString("id")).put("name", name)
                         .put("response", new JSONObject().put("result", result)));
             }

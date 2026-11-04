@@ -230,8 +230,11 @@ final class PhoneMic {
             case "ask": {
                 String q = u.getQueryParameter("q");
                 ok = q != null && !q.trim().isEmpty() && q.length() <= 300;
-                if (ok) c.startActivity(new Intent(c, JarvisActivity.class).putExtra("q", q.trim())
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP));
+                // answered in the background: J.A.R.V.I.S speaks and acts without covering what is on screen
+                if (ok) {
+                    String asked = q.trim();
+                    new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> JarvisBrain.ask(c, asked, null));
+                }
                 break;
             }
             case "key":

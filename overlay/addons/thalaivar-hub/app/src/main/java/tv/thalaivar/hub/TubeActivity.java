@@ -197,14 +197,14 @@ public class TubeActivity extends Activity {
 
     /** Plays in JK Tube's player, or in the video app the owner picked in Settings. */
     /** Every video plays in JK Tube's own full-screen player. */
-    static void play(Activity a, String id, String title) {
+    static void play(android.content.Context a, String id, String title) {
         java.util.ArrayList<String> one = new java.util.ArrayList<>();
         one.add(id);
         playQueue(a, one, title);
     }
 
     /** The best match first, the rest kept as backups: a video that won't play in JK Tube skips to the next. */
-    static void playQueue(Activity a, java.util.ArrayList<String> ids, String title) {
+    static void playQueue(android.content.Context a, java.util.ArrayList<String> ids, String title) {
         a.startActivity(new Intent(a, PlayerActivity.class).putStringArrayListExtra("queue", ids)
                 .putExtra("id", ids.get(0)).putExtra("title", title).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
     }

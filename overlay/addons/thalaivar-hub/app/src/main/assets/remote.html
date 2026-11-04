@@ -209,7 +209,11 @@ body.away main,body.away .now{opacity:.5}
   <div class="card"><h2>QUICK</h2><div class="chips" id="chips">
     <button>Anirudh songs podu</button><button>play Jailer 2 trailer</button><button>open Netflix</button><button>open Hotstar</button>
     <button>latest Thalaivar news</button><button>photos</button><button>Rajini mass scenes</button><button>Ilaiyaraaja hits</button>
-    <button>who directed Baasha?</button><button>screensaver</button></div></div>
+    <button>who directed Baasha?</button><button>screensaver</button></div>
+    <h2 style="margin-top:14px">TV CONTROL</h2><div class="chips" id="chips2">
+    <button>what's on the TV?</button><button>volume 20 percent</button><button>pause</button><button>next song</button>
+    <button>go to my movies</button><button>open Thalaivar cinema</button><button>turn off the TV in 30 minutes</button>
+    <button>cancel the sleep timer</button><button>go home</button></div></div>
 </section>
 
 <!-- APPS -->
@@ -332,7 +336,7 @@ function ask(t){t=(t||q.value).trim();if(!t)return;buzz(14);bubble(t,'me');q.val
 $('send').onclick=function(){ask()};
 q.addEventListener('keydown',function(e){if(e.key=='Enter'&&!e.shiftKey){e.preventDefault();ask()}});
 q.addEventListener('input',function(){q.style.height='';q.style.height=Math.min(120,q.scrollHeight)+'px'});
-document.querySelectorAll('#chips button').forEach(function(c){c.onclick=function(){ask(c.textContent)}});
+document.querySelectorAll('#chips button,#chips2 button').forEach(function(c){c.onclick=function(){ask(c.textContent)}});
 
 /* apps */
 var appsLoaded=false,allApps=[];
@@ -395,7 +399,7 @@ var live=$('live'),lt=$('lt'),fastUntil=0,timer;
 function ping(){var ctl=new AbortController(),t=setTimeout(function(){ctl.abort()},2800);
   fetch(base+'/ping',{headers:{'X-Jarvis':'1'},signal:ctl.signal,cache:'no-store'}).then(function(r){return r.json()}).then(function(j){clearTimeout(t);
     document.body.classList.remove('away');tvOn=j.on!==false;helperOff=j.helper===false;
-    live.className='live '+(tvOn?'on':'sleep');lt.textContent=tvOn?'CONNECTED':'TV IN STANDBY';
+    live.className='live '+(tvOn?'on':'sleep');lt.textContent=(tvOn?'CONNECTED':'TV IN STANDBY')+(j.timer?' · ⏲ '+j.timer+' MIN':'');
     $('power').classList.toggle('off',!tvOn);$('warn').classList.toggle('show',helperOff);
     if(j.max!=null&&!dragging)showVol(j.vol,j.max,j.muted);
     $('now').classList.toggle('show',!!j.now);$('nowt').textContent=j.now||'';

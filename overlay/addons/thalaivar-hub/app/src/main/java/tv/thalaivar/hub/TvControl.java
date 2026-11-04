@@ -113,6 +113,35 @@ final class TvControl {
         return pm == null || pm.isInteractive();
     }
 
+    private static long sleepAt;
+    private static final Runnable SLEEP = () -> {
+        sleepAt = 0;
+        AccessibilityService svc = JarvisKeyService.running;
+        if (svc != null && Build.VERSION.SDK_INT >= 28) svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_LOCK_SCREEN);
+    };
+
+    /** Standby after this many minutes; 0 cancels. */
+    static void sleepTimer(Context c, int minutes) {
+        MAIN.removeCallbacks(SLEEP);
+        sleepAt = minutes <= 0 ? 0 : System.currentTimeMillis() + minutes * 60_000L;
+        if (minutes > 0) MAIN.postDelayed(SLEEP, minutes * 60_000L);
+    }
+
+    /** The TV's state in words, for J.A.R.V.I.S to answer "what's playing?", "how loud is it?". */
+    static String describe(Context c) {
+        AudioManager am = (AudioManager) c.getSystemService(Context.AUDIO_SERVICE);
+        int vol = am.getStreamVolume(AudioManager.STREAM_MUSIC), max = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+        StringBuilder b = new StringBuilder(screenOn(c) ? "The screen is on. " : "The TV is in standby. ");
+        b.append("Volume ").append(Math.round(100f * vol / Math.max(1, max))).append(" percent");
+        if (am.isStreamMute(AudioManager.STREAM_MUSIC)) b.append(", muted");
+        b.append(". ");
+        if (PlayerActivity.showing != null) b.append("JK Tube is playing: ").append(PlayerActivity.nowTitle).append(". ");
+        String app = JarvisKeyService.onScreen;
+        if (!app.isEmpty()) b.append("On screen: ").append(app).append(". ");
+        if (sleepAt > 0) b.append("Sleep timer: ").append((sleepAt - System.currentTimeMillis() + 59_999) / 60_000).append(" minutes left.");
+        return b.toString().trim();
+    }
+
     /** Volume 0..max on the TV's media stream. */
     static boolean setVolume(Context c, String v) {
         AudioManager am = (AudioManager) c.getSystemService(Context.AUDIO_SERVICE);
@@ -137,8 +166,9 @@ final class TvControl {
                     .put("on", screenOn(c))
                     .put("helper", JarvisKeyService.running != null)
                     .put("now", PlayerActivity.showing != null ? PlayerActivity.nowTitle : "")
-                    .put("said", JarvisActivity.lastSaid)
-                    .put("saidAt", JarvisActivity.lastSaidAt)
+                    .put("said", JarvisBrain.lastSaid)
+                    .put("saidAt", JarvisBrain.lastSaidAt)
+                    .put("timer", sleepAt == 0 ? 0 : Math.max(1, (sleepAt - System.currentTimeMillis() + 59_999) / 60_000))
                     .toString();
         } catch (Exception e) {
             return "{\"ok\":true}";
@@ -168,6 +198,7 @@ final class TvControl {
             case "wallpapers": i = new Intent(c, WallpaperActivity.class); break;
             case "saver": i = new Intent(c, SaverActivity.class); break;
             case "jarvis": i = new Intent(c, JarvisActivity.class); break;
+            case "tvsettings": i = new Intent(android.provider.Settings.ACTION_SETTINGS); break;
             case "hubsettings": i = new Intent(c, SettingsActivity.class); break;
             default: return false;
         }

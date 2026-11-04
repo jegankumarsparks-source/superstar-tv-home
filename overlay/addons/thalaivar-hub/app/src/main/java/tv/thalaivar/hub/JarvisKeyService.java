@@ -15,6 +15,8 @@ import android.view.accessibility.AccessibilityEvent;
 public class JarvisKeyService extends AccessibilityService {
     /** The running service, for the phone remote's navigation keys; null while it is off. */
     static volatile JarvisKeyService running;
+    /** The name of the app on screen, for J.A.R.V.I.S's "what's on?" (only the app's name, never its content). */
+    static volatile String onScreen = "";
 
     /** The TV's other home screens; whenever one comes up, THALAIVAR TV's dashboard takes its place. */
     private static final String GOOGLE_HOME = "com.google.android.apps.tv.launcherx";
@@ -41,7 +43,9 @@ public class JarvisKeyService extends AccessibilityService {
         if (event.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return;
         CharSequence pkg = event.getPackageName();
         CharSequence cls = event.getClassName();
-        if (pkg == null || cls == null || !new Prefs(this).hubIsHome()) return;
+        if (pkg == null || cls == null) return;
+        noteApp(pkg.toString(), cls.toString());
+        if (!new Prefs(this).hubIsHome()) return;
         // Home button, power-on, leaving an app: the stock home appears, and the dashboard replaces it
         if ((GOOGLE_HOME.contentEquals(pkg) && cls.toString().contains("HomeActivity"))
                 || (CLEANYOURTV_HOME.contentEquals(pkg) && cls.toString().endsWith("MainActivity"))) {
@@ -50,6 +54,17 @@ public class JarvisKeyService extends AccessibilityService {
             lastHome = now;
             startActivity(new Intent(this, HubActivity.class)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
+        }
+    }
+
+    private void noteApp(String pkg, String cls) {
+        // dialogs, keyboards and the system's own windows aren't "what's on"
+        if (!cls.contains("Activity") || "android".equals(pkg) || pkg.startsWith("com.android.systemui")) return;
+        try {
+            android.content.pm.PackageManager pm = getPackageManager();
+            onScreen = getPackageName().equals(pkg) ? "THALAIVAR TV" : pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString();
+        } catch (Exception ignored) {
+            onScreen = pkg;
         }
     }
 

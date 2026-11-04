@@ -27,15 +27,6 @@ import java.util.Locale;
  * few turns so follow-ups work ("play the trailer of that one").
  */
 public class JarvisActivity extends Activity {
-    /** J.A.R.V.I.S's latest words and when, for the phone remote's chat. */
-    static volatile String lastSaid = "";
-    static volatile long lastSaidAt;
-
-    private static void remember(String words) {
-        lastSaid = words == null ? "" : words;
-        lastSaidAt = System.currentTimeMillis();
-    }
-
     private final Handler main = new Handler(Looper.getMainLooper());
     private final List<String[]> history = new ArrayList<>();
     private FaceView orb;
@@ -185,293 +176,25 @@ public class JarvisActivity extends Activity {
 
     private void handle(String text) {
         if (text == null || text.trim().isEmpty()) return;
-        if (!Gemini.hasKey()) {
-            said.setText("Add a Gemini key to secrets.properties to switch me on.");
-            return;
-        }
         heard.setText("“" + text.trim() + "”");
-        // plain commands happen at once, on the TV; only questions wait for Gemini
-        QuickCommand quick = QuickCommand.parse(text);
-        if (quick != null) {
-            said.setText(quick.say);
-            remember(quick.say);
-            // the action happens at once; the human voice confirms it (a kept phrase, or Live saying it)
-            if (new Prefs(this).speakReplies()) confirm(quick);
-            else main.postDelayed(() -> orb.setState(FaceView.HAPPY), 600);
-            Gemini.Reply r = new Gemini.Reply();
-            r.action = quick.action;
-            r.query = quick.query;
-            r.say = quick.say;
-            main.postDelayed(() -> act(r), 150);
-            return;
-        }
-        said.setText("…");
-        orb.setState(FaceView.THINKING);
-        askLive(text.trim());
-    }
-
-    /** The question through Gemini Live: the human voice starts within about a second, the words alongside. */
-    private void askLive(String text) {
-        LiveJarvis.ask(this, text, appNames(), new Prefs(this).speakReplies(), new LiveJarvis.Listener() {
+        JarvisBrain.ask(this, text.trim(), new JarvisBrain.Screen() {
+            @Override public void thinking() {
+                if (isDestroyed()) return;
+                said.setText("…");
+                orb.setState(FaceView.THINKING);
+            }
             @Override public void words(String soFar) {
                 if (isDestroyed()) return;
                 said.setText(soFar);
-                remember(soFar);
                 orb.setState(FaceView.SPEAKING);
-            }
-            @Override public void tool(String name, org.json.JSONObject args) {
-                if (isDestroyed()) return;
-                Gemini.Reply r = new Gemini.Reply();
-                switch (name) {
-                    case "play_video": r.action = "play"; r.query = args.optString("query"); break;
-                    case "open_app": r.action = "open_app"; r.query = args.optString("name"); break;
-                    case "open_film": r.action = "film"; r.query = args.optString("title"); break;
-                    case "show": {
-                        String sc = args.optString("screen").toLowerCase(Locale.ROOT);
-                        r.action = sc.contains("news") ? "news" : sc.contains("photo") ? "photos"
-                                : sc.contains("saver") ? "screensaver" : sc.contains("tube") ? "tube" : "none";
-                        break;
-                    }
-                    default: r.action = "none";
-                }
-                act(r);
             }
             @Override public void done(String all) {
                 if (isDestroyed()) return;
-                if (!all.isEmpty()) {
-                    said.setText(all);
-                    remember(all);
-                }
+                if (!all.isEmpty()) said.setText(all);
                 orb.setState(FaceView.HAPPY);
                 main.postDelayed(() -> orb.setState(FaceView.IDLE), 1400);
             }
-            @Override public void failed() {
-                if (!isDestroyed()) askText(text);
-            }
         });
-    }
-
-    private List<String> appNames() {
-        List<String> names = new ArrayList<>();
-        for (ResolveInfo r : apps) names.add(r.loadLabel(getPackageManager()).toString());
-        return names;
-    }
-
-    /** A kept phrase plays at once; otherwise Live says the confirmation in the same human voice. */
-    private void confirm(QuickCommand quick) {
-        Ui.WORK.execute(() -> {
-            byte[] pcm = Voice.cached(this, quick.voice);
-            if (pcm != null) {
-                main.post(() -> { if (!isFinishing()) Voice.play(pcm); });
-                return;
-            }
-            LiveJarvis.ask(this, "The TV is already doing this, so do not call any tool: " + quick.say
-                    + " Confirm it to Thalaiva in five words or fewer.", appNames(), true, new LiveJarvis.Listener() {
-                @Override public void words(String soFar) { }
-                @Override public void tool(String name, org.json.JSONObject args) { }
-                @Override public void done(String all) { }
-                @Override public void failed() { main.post(() -> speak(quick.voice, false)); }
-            });
-        });
-    }
-
-    /** The fallback when Live can't answer: the text models, then the voice. */
-    private void askText(String text) {
-        history.add(new String[]{"user", text.trim()});
-        while (history.size() > 8) history.remove(0);
-        List<String> names = new ArrayList<>();
-        for (ResolveInfo r : apps) names.add(r.loadLabel(getPackageManager()).toString());
-        List<String[]> turn = new ArrayList<>(history);
-        long asked = android.os.SystemClock.uptimeMillis();
-        Ui.WORK.execute(() -> {
-            Gemini.Reply r;
-            boolean ok = true;
-            // his films' facts come straight from the TV's own film data: no AI wait
-            String film = FilmAnswer.answer(this, text);
-            if (film != null) {
-                r = new Gemini.Reply();
-                r.say = film;
-            } else {
-                try {
-                    r = Gemini.ask(this, turn, names);
-                } catch (Exception e) {
-                    ok = false;
-                    r = new Gemini.Reply();
-                    r.say = Net.online(this) ? "Sorry, I couldn't reach Gemini just now. Try again." : "The TV is offline right now.";
-                }
-            }
-            Gemini.Reply reply = r;
-            boolean success = ok;
-            // a slow answer is spoken at once with the TV's voice instead of waiting again for the natural one
-            boolean waitedLong = android.os.SystemClock.uptimeMillis() - asked > 5000;
-            main.post(() -> respond(reply, success, waitedLong));
-        });
-    }
-
-    private void respond(Gemini.Reply r, boolean ok) {
-        respond(r, ok, false);
-    }
-
-    private void respond(Gemini.Reply r, boolean ok, boolean fastVoice) {
-        if (isFinishing() || isDestroyed()) return;
-        // only real answers go back to Gemini as context; a failed turn is dropped so it doesn't poison the next one
-        if (ok && !r.say.isEmpty()) history.add(new String[]{"model", r.say});
-        else if (!history.isEmpty() && "user".equals(history.get(history.size() - 1)[0])) history.remove(history.size() - 1);
-        said.setText(r.say);
-        remember(r.say);
-        orb.setState(FaceView.IDLE);
-        if (!r.say.isEmpty() && new Prefs(this).speakReplies()) speak(r.say, fastVoice);
-        // act after the reply has started, so the answer is heard before the screen changes
-        main.postDelayed(() -> act(r), "none".equals(r.action) ? 0 : 1800);
-    }
-
-    /** Incremented per reply, so a slow voice for an old reply never plays over a newer one. */
-    private int speechTurn;
-
-    /**
-     * The reply in Gemini's natural human voice; if that hasn't arrived within 7 s (slow, or out of quota),
-     * the TV's best installed voice reads it instead.
-     */
-    private void speak(String text, boolean fastVoice) {
-        int turn = ++speechTurn;
-        boolean[] done = {false};
-        Runnable fallback = () -> {
-            if (done[0] || turn != speechTurn || isFinishing()) return;
-            done[0] = true;
-            if (!ttsReady) return;
-            boolean tamil = text.codePoints().anyMatch(cp -> cp >= 0x0B80 && cp <= 0x0BFF);
-            tts.setLanguage(tamil ? new Locale("ta", "IN") : new Locale("en", "IN"));
-            Voice.pickBestVoice(tts, tamil ? new Locale("ta", "IN") : new Locale("en", "IN"));
-            tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "jarvis");
-        };
-        // always the human voice; the TV's own voice only if Google's voice service doesn't answer within 10 s
-        main.postDelayed(fallback, 8000);
-        Ui.WORK.execute(() -> {
-            byte[] pcm = Voice.natural(this, text);
-            main.post(() -> {
-                if (done[0] || turn != speechTurn || isFinishing() || isDestroyed()) return;
-                if (pcm == null) {
-                    main.removeCallbacks(fallback);
-                    fallback.run();
-                    return;
-                }
-                done[0] = true;
-                main.removeCallbacks(fallback);
-                long ms = Voice.play(pcm);
-                orb.setState(FaceView.SPEAKING);
-                main.postDelayed(() -> {
-                    if (turn != speechTurn) return;
-                    orb.setState(FaceView.HAPPY);
-                    main.postDelayed(() -> { if (turn == speechTurn) orb.setState(FaceView.IDLE); }, 1400);
-                }, ms + 150);
-            });
-        });
-    }
-
-    private void act(Gemini.Reply r) {
-        if (isFinishing() || isDestroyed()) return;
-        String q = r.query == null ? "" : r.query.trim();
-        if (q.isEmpty() && ("play".equals(r.action) || "film".equals(r.action) || "open_app".equals(r.action))) return;
-        switch (r.action) {
-            case "play":
-                playFirst(q);
-                break;
-            case "tube":
-                startActivity(new Intent(this, TubeActivity.class));
-                break;
-            case "film":
-                openFilm(q);
-                break;
-            case "open_app":
-                openApp(q);
-                break;
-            case "news":
-                startActivity(new Intent(this, NewsActivity.class));
-                break;
-            case "photos":
-                startActivity(new Intent(this, PhotoActivity.class));
-                break;
-            case "screensaver":
-                startActivity(new Intent(this, SaverActivity.class));
-                break;
-            default:
-                break;
-        }
-    }
-
-    /** With a YouTube key the top result plays straight away; without one JK Tube hands the search to YouTube. */
-    private void playFirst(String q) {
-        if (q.isEmpty()) return;
-        if (!YtApi.hasKey()) {
-            // no YouTube key: a film's official trailer still plays straight away in JK Tube
-            Ui.WORK.execute(() -> {
-                YtApi.Video v = YtApi.filmTrailer(this, q);
-                main.post(() -> {
-                    if (v != null) TubeActivity.play(this, v.id, v.title);
-                    else startActivity(new Intent(this, TubeActivity.class).putExtra("q", q));
-                });
-            });
-            return;
-        }
-        Ui.WORK.execute(() -> {
-            try {
-                // songs: a queue of 10 from the Music category that plays one after another; anything else: the top
-                // 5 matches, the first plays at once and the others are backups if one won't play here
-                boolean songs = q.toLowerCase(Locale.ROOT).matches(".*\\b(songs?|paattu|paadal|music|hits|bgm|album)\\b.*");
-                List<YtApi.Video> l = songs ? YtApi.searchMusic(this, q, 10) : YtApi.search(this, q, 5);
-                if (songs && l.isEmpty()) l = YtApi.search(this, q, 5);
-                if (!l.isEmpty()) {
-                    java.util.ArrayList<String> queue = TubeActivity.ids(l);
-                    String title = l.get(0).title;
-                    main.post(() -> TubeActivity.playQueue(this, queue, title));
-                    return;
-                }
-            } catch (Exception ignored) {
-                // fall through to JK Tube's search
-            }
-            main.post(() -> startActivity(new Intent(this, TubeActivity.class).putExtra("q", q)));
-        });
-    }
-
-    private void openFilm(String title) {
-        Ui.WORK.execute(() -> {
-            try {
-                String want = title.toLowerCase(Locale.ROOT);
-                for (Films.Film f : Films.resolve(this, Films.curated())) {
-                    if (f.id > 0 && (f.title.toLowerCase(Locale.ROOT).contains(want) || want.contains(f.title.toLowerCase(Locale.ROOT)))) {
-                        main.post(() -> startActivity(new Intent(this, MovieActivity.class).putExtra("id", f.id).putExtra("tamil", f.tamil)));
-                        return;
-                    }
-                }
-                for (Films.Film f : Films.all(this)) {
-                    if (f.title.toLowerCase(Locale.ROOT).contains(want)) {
-                        main.post(() -> startActivity(new Intent(this, MovieActivity.class).putExtra("id", f.id)));
-                        return;
-                    }
-                }
-            } catch (Exception ignored) {
-                // nothing found
-            }
-            main.post(() -> said.setText("I couldn't find " + title + "."));
-        });
-    }
-
-    private void openApp(String name) {
-        String want = name.toLowerCase(Locale.ROOT).trim();
-        // exact name first, then a name that contains what was said, then a name said inside a longer phrase
-        for (int pass = 0; pass < 3; pass++) {
-            for (ResolveInfo r : apps) {
-                String label = r.loadLabel(getPackageManager()).toString().toLowerCase(Locale.ROOT).trim();
-                boolean hit = pass == 0 ? label.equals(want)
-                        : pass == 1 ? label.contains(want)
-                        : label.length() >= 3 && want.contains(label);
-                if (hit) {
-                    Ui.launchApp(this, r.activityInfo.packageName);
-                    return;
-                }
-            }
-        }
-        said.setText(name + " isn't installed on this TV.");
     }
 
     @Override
