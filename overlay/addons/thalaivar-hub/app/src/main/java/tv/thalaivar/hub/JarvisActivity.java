@@ -91,6 +91,28 @@ public class JarvisActivity extends Activity {
         row.addView(typed);
         hint = Ui.label(this, "OK speak · BACK close · Gemini", 12, Ui.DIM);
         col.addView(hint);
+        // the phone remote: a QR code that pairs it (mic, D-pad, volume, apps), always on the panel
+        PhoneMic.start(this);
+        String pairing = PhoneMic.pairingUrl(this);
+        android.graphics.Bitmap qr = pairing == null ? null : qrCode(pairing, Ui.dp(this, 132));
+        if (qr != null) {
+            LinearLayout qrBox = new LinearLayout(this);
+            qrBox.setOrientation(LinearLayout.VERTICAL);
+            qrBox.setGravity(Gravity.CENTER_HORIZONTAL);
+            qrBox.setPadding(Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 6));
+            qrBox.setBackground(Ui.round(0xFFFFFFFF, Ui.dp(this, 16), 0, 0));
+            android.widget.ImageView qv = new android.widget.ImageView(this);
+            qv.setImageBitmap(qr);
+            qrBox.addView(qv, new LinearLayout.LayoutParams(Ui.dp(this, 132), Ui.dp(this, 132)));
+            TextView cap = Ui.label(this, "SCAN · PHONE REMOTE", 11, 0xFF1A1206);
+            qrBox.addView(cap);
+            LinearLayout.LayoutParams qlp = new LinearLayout.LayoutParams(-2, -2);
+            qlp.leftMargin = Ui.dp(this, 14);
+            panel.addView(qrBox, qlp);
+        } else {
+            TextView phone = Ui.label(this, "📱 Phone remote: connect the TV to Wi-Fi", 13, 0xFF8FD8FF);
+            col.addView(phone);
+        }
         panel.addView(col, new LinearLayout.LayoutParams(Ui.dp(this, 360), -2));
         FrameLayout.LayoutParams plp = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.END);
         plp.setMargins(0, 0, Ui.dp(this, 36), Ui.dp(this, 30));
@@ -129,6 +151,38 @@ public class JarvisActivity extends Activity {
         if (prompt != null) handle(prompt);
         // from the remote's mic button: listen at once, while the button is still held
         else if (Gemini.hasKey()) main.postDelayed(this::listen, getIntent().getBooleanExtra("hold", false) ? 0 : 400);
+    }
+
+    /** True while the panel is in front: the key service then leaves Google's voice engine alone. */
+    static volatile boolean onScreen;
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        onScreen = true;
+    }
+
+    @Override
+    protected void onPause() {
+        // a little grace, so the engine's window appearing as the panel pauses is not mistaken for the mic button
+        main.postDelayed(() -> { if (isFinishing() || !hasWindowFocus()) onScreen = false; }, 1500);
+        super.onPause();
+    }
+
+    /** The pairing address as a QR code (ZXing), black on white with a quiet border. */
+    static android.graphics.Bitmap qrCode(String text, int size) {
+        try {
+            java.util.Map<com.google.zxing.EncodeHintType, Object> hints = new java.util.EnumMap<>(com.google.zxing.EncodeHintType.class);
+            hints.put(com.google.zxing.EncodeHintType.MARGIN, 1);
+            hints.put(com.google.zxing.EncodeHintType.ERROR_CORRECTION, com.google.zxing.qrcode.decoder.ErrorCorrectionLevel.M);
+            com.google.zxing.common.BitMatrix m = new com.google.zxing.qrcode.QRCodeWriter()
+                    .encode(text, com.google.zxing.BarcodeFormat.QR_CODE, size, size, hints);
+            int[] px = new int[size * size];
+            for (int y = 0; y < size; y++) for (int x = 0; x < size; x++) px[y * size + x] = m.get(x, y) ? 0xFF000000 : 0xFFFFFFFF;
+            return android.graphics.Bitmap.createBitmap(px, size, size, android.graphics.Bitmap.Config.ARGB_8888);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private static final int MIC_PERMISSION = 52;
@@ -391,30 +445,44 @@ public class JarvisActivity extends Activity {
         List<String> names = new ArrayList<>();
         for (ResolveInfo r : apps) names.add(r.loadLabel(getPackageManager()).toString());
         List<String[]> turn = new ArrayList<>(history);
+        long asked = android.os.SystemClock.uptimeMillis();
         Ui.WORK.execute(() -> {
             Gemini.Reply r;
             boolean ok = true;
-            try {
-                r = Gemini.ask(this, turn, names);
-            } catch (Exception e) {
-                ok = false;
+            // his films' facts come straight from the TV's own film data: no AI wait
+            String film = FilmAnswer.answer(this, text);
+            if (film != null) {
                 r = new Gemini.Reply();
-                r.say = Net.online(this) ? "Sorry, I couldn't reach Gemini just now. Try again." : "The TV is offline right now.";
+                r.say = film;
+            } else {
+                try {
+                    r = Gemini.ask(this, turn, names);
+                } catch (Exception e) {
+                    ok = false;
+                    r = new Gemini.Reply();
+                    r.say = Net.online(this) ? "Sorry, I couldn't reach Gemini just now. Try again." : "The TV is offline right now.";
+                }
             }
             Gemini.Reply reply = r;
             boolean success = ok;
-            main.post(() -> respond(reply, success));
+            // a slow answer is spoken at once with the TV's voice instead of waiting again for the natural one
+            boolean waitedLong = android.os.SystemClock.uptimeMillis() - asked > 5000;
+            main.post(() -> respond(reply, success, waitedLong));
         });
     }
 
     private void respond(Gemini.Reply r, boolean ok) {
+        respond(r, ok, false);
+    }
+
+    private void respond(Gemini.Reply r, boolean ok, boolean fastVoice) {
         if (isFinishing() || isDestroyed()) return;
         // only real answers go back to Gemini as context; a failed turn is dropped so it doesn't poison the next one
         if (ok && !r.say.isEmpty()) history.add(new String[]{"model", r.say});
         else if (!history.isEmpty() && "user".equals(history.get(history.size() - 1)[0])) history.remove(history.size() - 1);
         said.setText(r.say);
         orb.setState(FaceView.IDLE);
-        if (!r.say.isEmpty() && new Prefs(this).speakReplies()) speak(r.say);
+        if (!r.say.isEmpty() && new Prefs(this).speakReplies()) speak(r.say, fastVoice);
         // act after the reply has started, so the answer is heard before the screen changes
         main.postDelayed(() -> act(r), "none".equals(r.action) ? 0 : 1800);
     }
@@ -426,7 +494,7 @@ public class JarvisActivity extends Activity {
      * The reply in Gemini's natural human voice; if that hasn't arrived within 7 s (slow, or out of quota),
      * the TV's best installed voice reads it instead.
      */
-    private void speak(String text) {
+    private void speak(String text, boolean fastVoice) {
         int turn = ++speechTurn;
         boolean[] done = {false};
         Runnable fallback = () -> {
@@ -438,7 +506,12 @@ public class JarvisActivity extends Activity {
             Voice.pickBestVoice(tts, tamil ? new Locale("ta", "IN") : new Locale("en", "IN"));
             tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "jarvis");
         };
-        main.postDelayed(fallback, 7000);
+        if (fastVoice) {
+            fallback.run();
+            return;
+        }
+        // the natural voice gets 4 s at most; after that the TV's own voice reads it
+        main.postDelayed(fallback, 4000);
         Ui.WORK.execute(() -> {
             byte[] pcm = Voice.natural(text);
             main.post(() -> {

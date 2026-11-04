@@ -37,6 +37,7 @@ every Android TV).
 | ⚡ **Iconic moments** | Mass entries, style, punch dialogues, comedy, action, interviews, audio launches, fan celebrations: one press opens official YouTube results |
 | 📰 **Live news engine** | Rajinikanth, Jailer 2, box office, Dharman and the KH x RK film; every headline shows its publisher, age and a **CONFIRMED / REPORTED / RUMOUR** badge; works offline with the saved copy |
 | 🤖 **J.A.R.V.I.S voice assistant** | A floating assistant with its own animated 3D face (an original character): ask anything, "open Netflix", "play Anirudh songs", "latest news". Everyday commands run on the TV in under 2 seconds; questions are answered by Gemini in a natural human voice. Opens from the remote's mic button in any app, with an On/Off switch |
+| 📱 **Phone remote (scan once)** | Scan the QR on the J.A.R.V.I.S panel: talk to J.A.R.V.I.S with your phone's mic, D-pad, volume, play/pause, apps and quick commands, with a live "Connected" light. Stays paired whenever the TV is on |
 | ▶️ **JK Tube** | A TV-first video browser: search bar, voice search, official trailers row, trending and Tamil rows (with a YouTube key), and every video opens in the player you choose — SmartTube when it's installed |
 | 🖼️ **Full-screen photos** | His portraits and every film's stills, one at a time across the whole screen with a 3D swing between them, slideshow, and ★ to add any picture to the screensaver |
 | 📺 **Apps hub** | Every app on your TV, auto-sorted into Entertainment, Music, Live TV, Games and Tools; pin your favourites |

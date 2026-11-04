@@ -56,7 +56,54 @@ final class Gemini {
                 .putLong("grounding_off_until", groundingOffUntil).apply();
     }
 
+    /** Fast on the free tier (about 5 s) but it sometimes answers 500; raced against the Gemini model. */
+    static final String FAST_MODEL = "gemma-4-26b-a4b-it";
+    private static final java.util.concurrent.ExecutorService RACE = java.util.concurrent.Executors.newFixedThreadPool(2);
+
+    /**
+     * Asks Gemma and Gemini at the same time and returns whichever answers well first, so a reply arrives in
+     * about 5 s instead of 10-25 s on the free tier; if one fails, the other still answers.
+     */
     static Reply ask(android.content.Context ctx, List<String[]> history, List<String> apps) throws Exception {
+        java.util.concurrent.ExecutorCompletionService<Reply> race = new java.util.concurrent.ExecutorCompletionService<>(RACE);
+        java.util.List<java.util.concurrent.Future<Reply>> runs = new java.util.ArrayList<>();
+        runs.add(race.submit(() -> askGemma(history, apps)));
+        runs.add(race.submit(() -> askGemini(ctx, history, apps)));
+        Exception last = null;
+        try {
+            for (int i = 0; i < runs.size(); i++) {
+                try {
+                    Reply r = race.take().get();
+                    if (r != null && !r.say.isEmpty()) return r;
+                } catch (java.util.concurrent.ExecutionException e) {
+                    last = e.getCause() instanceof Exception ? (Exception) e.getCause() : e;
+                }
+            }
+        } finally {
+            for (java.util.concurrent.Future<Reply> f : runs) f.cancel(true);
+        }
+        throw last != null ? last : new java.io.IOException("no answer");
+    }
+
+    /** Gemma takes no separate system instruction: the instructions lead the first message (5xx retried by Net). */
+    private static Reply askGemma(List<String[]> history, List<String> apps) throws Exception {
+        JSONArray contents = new JSONArray();
+        for (int i = 0; i < history.size(); i++) {
+            String[] h = history.get(i);
+            String text = i == 0 ? system(apps) + "\n\nUser: " + h[1] : h[1];
+            contents.put(new JSONObject().put("role", h[0]).put("parts", new JSONArray().put(new JSONObject().put("text", text))));
+        }
+        JSONObject body = new JSONObject().put("contents", contents)
+                .put("generationConfig", new JSONObject().put("temperature", 0.4).put("maxOutputTokens", 400));
+        Map<String, String> h = new HashMap<>();
+        h.put("x-goog-api-key", BuildConfig.GEMINI_KEY);
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/" + FAST_MODEL + ":generateContent";
+        // Gemma's free tier often answers 500 in under a second and then succeeds: retry fast (the Gemini run
+        // races alongside, and whichever answers first wins)
+        return parse(Net.postJson(url, h, body.toString(), 6, 150));
+    }
+
+    private static Reply askGemini(android.content.Context ctx, List<String[]> history, List<String> apps) throws Exception {
         restore(ctx);
         JSONObject body = new JSONObject();
         body.put("systemInstruction", new JSONObject().put("parts", new JSONArray().put(new JSONObject().put("text", system(apps)))));
@@ -87,6 +134,11 @@ final class Gemini {
         } else {
             res = Net.postJson(url, h, body.toString());
         }
+        return parse(res);
+    }
+
+    /** The model's text to a reply: the JSON object inside it, or the plain words if there is none. */
+    static Reply parse(String res) throws Exception {
         JSONArray cands = new JSONObject(res).optJSONArray("candidates");
         JSONObject content = cands == null || cands.length() == 0 ? null : cands.getJSONObject(0).optJSONObject("content");
         JSONArray parts = content == null ? null : content.optJSONArray("parts");
@@ -96,7 +148,11 @@ final class Gemini {
             return blocked;
         }
         StringBuilder all = new StringBuilder();
-        for (int i = 0; i < parts.length(); i++) all.append(parts.getJSONObject(i).optString("text"));
+        // thinking parts (some models return them) are not the answer
+        for (int i = 0; i < parts.length(); i++) {
+            JSONObject part = parts.getJSONObject(i);
+            if (!part.optBoolean("thought", false)) all.append(part.optString("text"));
+        }
         String text = all.toString();
         int a = text.indexOf('{'), z = text.lastIndexOf('}');
         Reply r = new Reply();

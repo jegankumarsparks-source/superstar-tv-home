@@ -40,6 +40,7 @@ public class HubActivity extends Activity {
     protected void onCreate(Bundle b) {
         super.onCreate(b);
         prefs = new Prefs(this);
+        PhoneMic.start(this);
         build();
         if (b == null) splash();
         loadFilms();

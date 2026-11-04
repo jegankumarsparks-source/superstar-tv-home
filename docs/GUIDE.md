@@ -81,6 +81,23 @@ Kodak, Thomson, iFFALCON, Chromecast with Google TV, Google TV Streamer, NVIDIA 
 - The remote's voice reaches the TV over **Bluetooth**: if the TV asks you to press Home + Back, do it once to pair the remote. Buttons work without Bluetooth, voice doesn't.
 - On some TVs the firmware gives the remote's microphone only to Google's assistant; if J.A.R.V.I.S hears silence, type in its panel, or plug a USB microphone into the TV.
 - Instant commands (no waiting): "open Netflix", "Netflix open pannu", "play Jailer 2 trailer", "Anirudh songs podu", "news", "photos", "screensaver".
+- Instant film answers from the TV's own film data: "who directed Baasha?", "Padayappa music director?", "when did Jailer 2 release?", "cast of Kabali".
+- Other questions go to Gemma and Gemini at the same time and the first answer wins (usually about 5 s on the free tier).
+
+### The phone remote (scan once)
+
+The J.A.R.V.I.S panel shows a QR code. Scan it with a phone on the same Wi-Fi and you get the J.A.R.V.I.S
+remote: a talk box for your keyboard's microphone (English or Tamil), a D-pad with OK, Back, Home, volume and
+play/pause, the main apps, and quick commands. Use your browser's **Add to Home screen** and it opens like an app.
+
+- It stays paired: the key in the QR is kept on the TV, and the remote is reachable whenever the TV is on (a
+  green **CONNECTED TO TV** light; it reconnects by itself after the TV sleeps).
+- The QR carries a 128-bit key, so there is no PIN to type and nothing to guess. Commands are accepted only from
+  the remote's own page, only at the TV's address, and only on your home network.
+- **Keep the TV's address fixed:** in your router, reserve the TV's IP address (DHCP reservation). If the
+  router ever gives the TV a new address, scan the QR again.
+- Many TVs keep the remote's own microphone for Google's assistant; the phone remote is the reliable way to talk
+  to J.A.R.V.I.S on those.
 
 ## 3. Prepare the PC
 

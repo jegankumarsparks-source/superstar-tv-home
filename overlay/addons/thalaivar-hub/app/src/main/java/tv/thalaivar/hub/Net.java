@@ -75,8 +75,13 @@ final class Net {
 
     /** POST a JSON body, retried like get(); for the assistant, which is never cached. */
     static String postJson(String url, Map<String, String> headers, String json) throws IOException {
+        return postJson(url, headers, json, 3, 800);
+    }
+
+    /** As above with the number of tries and the pause unit between them (the pause grows each try). */
+    static String postJson(String url, Map<String, String> headers, String json, int tries, long pauseMs) throws IOException {
         IOException last = null;
-        for (int attempt = 0; attempt < 3; attempt++) {
+        for (int attempt = 0; attempt < tries; attempt++) {
             HttpURLConnection con = null;
             try {
                 con = (HttpURLConnection) new URL(url).openConnection();
@@ -96,8 +101,9 @@ final class Net {
             } catch (IOException e) {
                 last = e;
                 if (e.getMessage() != null && e.getMessage().startsWith("HTTP 4")) throw e;
+                if (Thread.currentThread().isInterrupted()) throw e;
                 try {
-                    Thread.sleep(800L * (attempt + 1));
+                    Thread.sleep(pauseMs * (attempt + 1));
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
                     throw e;

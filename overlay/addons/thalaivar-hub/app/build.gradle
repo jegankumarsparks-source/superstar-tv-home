@@ -45,6 +45,8 @@ android {
 }
 
 dependencies {
+    // QR codes for pairing the phone remote (ZXing core: plain Java, no Android libraries)
+    implementation 'com.google.zxing:core:3.5.3'
     // Test only (never in the APK): plain JVM tests for the news classifier and the rotation, src/test.
     testImplementation 'junit:junit:4.13.2'
 }
