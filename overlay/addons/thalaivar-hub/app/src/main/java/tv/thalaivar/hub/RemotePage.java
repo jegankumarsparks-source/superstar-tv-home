@@ -1,98 +1,29 @@
 package tv.thalaivar.hub;
 
+import android.content.Context;
+
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+
 /**
- * The phone remote's page (one file, no outside resources): a glowing orb, a talk box for the keyboard's
- * microphone, a round D-pad, volume and media keys, the main apps and quick commands. Its address carries the
- * pairing key, so the page finds its own commands under the same path.
+ * The phone remote's page, assets/remote.html (one file, no outside resources): power, the D-pad or a
+ * touchpad, volume with a level bar, media keys, J.A.R.V.I.S chat, every app on the TV with its icon, and the
+ * dashboard's screens. Its address carries the pairing key, so the page finds its own commands under the same
+ * path.
  */
 final class RemotePage {
-    static final String HTML = "<!doctype html><html lang=en><head><meta charset=utf-8>"
-            + "<meta name=viewport content='width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no'>"
-            + "<meta name=theme-color content='#070a14'><meta name=mobile-web-app-capable content=yes>"
-            + "<meta name=apple-mobile-web-app-capable content=yes><link rel=manifest id=mf>"
-            + "<title>J.A.R.V.I.S remote</title><style>"
-            + ".live{display:flex;align-items:center;gap:8px;font-size:13px;letter-spacing:.12em;padding:6px 14px;border-radius:999px;"
-            + "border:1px solid var(--line);background:#00000040;margin-top:4px}"
-            + ".dot{width:10px;height:10px;border-radius:50%;background:#ff6b6b;box-shadow:0 0 10px #ff6b6b}"
-            + ".live.on .dot{background:#3ddc84;box-shadow:0 0 12px #3ddc84}"
-            + "body.off .card{opacity:.45;pointer-events:none}"
-            + ":root{--g:#ffd35c;--g2:#ffb020;--c:#4fe3ff;--bg:#070a14;--card:#ffffff0d;--line:#ffd35c33}"
-            + "*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}"
-            + "body{margin:0;min-height:100vh;font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#f5ecd7;"
-            + "background:radial-gradient(120% 60% at 50% 0%,#1a1440 0%,var(--bg) 55%) fixed;display:flex;flex-direction:column;align-items:center;padding:18px 14px 32px}"
-            + ".orb{width:118px;height:118px;border-radius:50%;position:relative;margin:6px 0 2px;"
-            + "background:radial-gradient(circle at 35% 30%,#fff7d6 0%,#ffd35c 30%,#e0901c 70%,#7a4206 100%);"
-            + "box-shadow:0 0 40px #ffb02088,0 0 90px #ffb02044;animation:breathe 3.2s ease-in-out infinite}"
-            + ".orb:before,.orb:after{content:'';position:absolute;inset:-16px;border-radius:50%;border:2px solid transparent;"
-            + "border-top-color:var(--g);border-left-color:#ffd35c55;animation:spin 6s linear infinite}"
-            + ".orb:after{inset:-28px;border-top-color:var(--c);border-right-color:#4fe3ff44;animation-duration:9s;animation-direction:reverse}"
-            + ".orb.busy{animation:pulse .7s ease-in-out infinite}"
-            + "@keyframes spin{to{transform:rotate(360deg)}}@keyframes breathe{50%{transform:scale(1.05)}}@keyframes pulse{50%{transform:scale(1.12);box-shadow:0 0 60px #4fe3ffaa}}"
-            + "h1{margin:22px 0 2px;font-size:26px;letter-spacing:.55em;font-weight:800;background:linear-gradient(90deg,var(--g),#fff3c4,var(--c),var(--g));"
-            + "-webkit-background-clip:text;background-clip:text;color:transparent;background-size:300% 100%;animation:shine 6s linear infinite}"
-            + "@keyframes shine{to{background-position:300% 0}}"
-            + ".sub{opacity:.7;font-size:13px;letter-spacing:.2em;margin-bottom:14px}"
-            + ".card{width:100%;max-width:520px;background:var(--card);border:1px solid var(--line);border-radius:22px;padding:14px;margin:8px 0;backdrop-filter:blur(8px)}"
-            + ".talk{display:flex;gap:10px;align-items:stretch}"
-            + "textarea{flex:1;min-height:64px;resize:none;border-radius:16px;border:1px solid #ffd35c55;background:#00000040;color:#fff;font-size:19px;padding:12px}"
-            + ".mic{width:74px;border:0;border-radius:18px;font-size:30px;background:linear-gradient(160deg,var(--g),var(--g2));color:#1a1206;box-shadow:0 6px 18px #ffb02055}"
-            + ".send{width:100%;margin-top:10px;border:0;border-radius:16px;padding:14px;font-size:18px;font-weight:800;letter-spacing:.08em;background:#4fe3ff;color:#04121a}"
-            + "#st{min-height:20px;margin-top:8px;font-size:14px;color:#8fd8ff;text-align:center}"
-            + ".hint{font-size:12px;opacity:.6;margin-top:6px;text-align:center}"
-            + ".pad{position:relative;width:236px;height:236px;margin:6px auto;border-radius:50%;background:radial-gradient(circle,#ffffff14,#ffffff06);border:1px solid var(--line)}"
-            + ".pad button{position:absolute;border:0;background:transparent;color:var(--g);font-size:30px;width:76px;height:76px}"
-            + ".pad .u{left:80px;top:2px}.pad .d{left:80px;bottom:2px}.pad .l{left:2px;top:80px}.pad .r{right:2px;top:80px}"
-            + ".pad .ok{left:68px;top:68px;width:100px;height:100px;border-radius:50%;background:linear-gradient(160deg,var(--g),var(--g2));color:#1a1206;font-weight:900;font-size:22px;box-shadow:0 0 26px #ffb02066}"
-            + ".row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}"
-            + ".row button,.apps button{border:1px solid var(--line);border-radius:16px;background:#ffffff0a;color:#f5ecd7;padding:14px 4px;font-size:15px;font-weight:600}"
-            + ".apps{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}"
-            + ".chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}"
-            + ".chips span{border:1px solid #4fe3ff55;color:#bff3ff;border-radius:999px;padding:8px 12px;font-size:14px}"
-            + "button:active,.chips span:active{transform:scale(.94);filter:brightness(1.2)}"
-            + "h2{font-size:12px;letter-spacing:.3em;color:var(--g);margin:2px 4px 10px;font-weight:700}"
-            + "</style></head><body>"
-            + "<div class=orb id=orb></div><h1>JARVIS</h1><div class=sub>THALAIVAR TV · REMOTE</div>"
-            + "<div class=live id=live><span class=dot></span><span id=lt>Connecting…</span></div>"
-            + "<div class=card><h2>TALK</h2><div class=talk><textarea id=q placeholder='Ask or command…'></textarea>"
-            + "<button class=mic id=mic aria-label='Speak'>🎤</button></div>"
-            + "<button class=send id=send>SEND TO TV</button><div id=st></div>"
-            + "<div class=hint>Tap 🎤, then the microphone on your keyboard, and speak — English or தமிழ்</div></div>"
-            + "<div class=card><h2>QUICK</h2><div class=chips>"
-            + "<span>open Netflix</span><span>Anirudh songs podu</span><span>play Jailer 2 trailer</span>"
-            + "<span>latest Thalaivar news</span><span>photos</span><span>who directed Baasha?</span></div></div>"
-            + "<div class=card><h2>REMOTE</h2><div class=pad>"
-            + "<button class=u data-k=up>▲</button><button class=l data-k=left>◀</button><button class=ok data-k=ok>OK</button>"
-            + "<button class=r data-k=right>▶</button><button class=d data-k=down>▼</button></div>"
-            + "<div class=row><button data-k=back>↩ Back</button><button data-k=home>⌂ Home</button>"
-            + "<button data-k=playpause>⏯</button><button data-k=mute>🔇</button></div>"
-            + "<div class=row style='margin-top:10px;grid-template-columns:1fr 1fr'><button data-k=voldown>🔉 Vol −</button><button data-k=volup>🔊 Vol +</button></div></div>"
-            + "<div class=card><h2>APPS</h2><div class=apps>"
-            + "<button data-p=org.smarttube.stable>SmartTube</button><button data-p=in.startv.hotstar>Hotstar</button>"
-            + "<button data-p=com.amazon.amazonvideo.livingroom>Prime</button><button data-p=com.netflix.ninja>Netflix</button>"
-            + "<button data-p=tv.thalaivar.hub>Thalaivar</button><button data-p=jktube>JK Tube</button></div></div>"
-            + "<script>"
-            + "var base=location.pathname.replace(/\\/$/,''),q=document.getElementById('q'),st=document.getElementById('st'),orb=document.getElementById('orb');"
-            + "function call(path,cb){orb.classList.add('busy');if(navigator.vibrate)navigator.vibrate(12);"
-            + "fetch(base+path,{headers:{'X-Jarvis':'1'}}).then(function(r){return r.json()}).then(function(j){orb.classList.remove('busy');cb&&cb(j.ok)})"
-            + ".catch(function(){orb.classList.remove('busy');st.textContent='✗ Is the phone on the same Wi-Fi as the TV?'})}"
-            + "function send(t){t=(t||q.value).trim();if(!t)return;st.textContent='Sending…';"
-            + "call('/ask?q='+encodeURIComponent(t),function(ok){st.textContent=ok?'✓ J.A.R.V.I.S is on it: “'+t+'”':'✗ Not sent';if(ok)q.value=''})}"
-            + "document.getElementById('send').onclick=function(){send()};"
-            + "document.getElementById('mic').onclick=function(){q.focus();st.textContent='Now tap the 🎤 on your keyboard and speak'};"
-            + "q.addEventListener('keydown',function(e){if(e.key=='Enter'&&!e.shiftKey){e.preventDefault();send()}});"
-            + "document.querySelectorAll('.chips span').forEach(function(c){c.onclick=function(){send(c.textContent)}});"
-            + "document.querySelectorAll('[data-k]').forEach(function(b){b.onclick=function(){call('/key?k='+b.dataset.k)}});"
-            + "document.querySelectorAll('[data-p]').forEach(function(b){b.onclick=function(){call('/app?p='+b.dataset.p,function(ok){st.textContent=ok?'✓ Opening '+b.textContent:'✗ '+b.textContent+' is not on this TV'})}});"
-            // always connected: a quiet check every 4 s; when the TV is off or asleep, controls dim and it retries
-            + "document.getElementById('mf').href=base+'/manifest.json';"
-            + "var live=document.getElementById('live'),lt=document.getElementById('lt');"
-            + "function ping(){var ctl=new AbortController();var t=setTimeout(function(){ctl.abort()},3000);"
-            + "fetch(base+'/ping',{headers:{'X-Jarvis':'1'},signal:ctl.signal,cache:'no-store'}).then(function(r){return r.json()}).then(function(j){"
-            + "clearTimeout(t);var on=!!j.ok;live.classList.toggle('on',on);document.body.classList.toggle('off',!on);"
-            + "lt.textContent=on?'CONNECTED TO TV':'RECONNECTING…'}).catch(function(){clearTimeout(t);live.classList.remove('on');"
-            + "document.body.classList.add('off');lt.textContent='TV OFF OR AWAY · RECONNECTING…'})}"
-            + "ping();setInterval(ping,4000);document.addEventListener('visibilitychange',function(){if(!document.hidden)ping()});"
-            + "</script></body></html>";
+    private static String html;
+
+    static synchronized String html(Context c) {
+        if (html == null) {
+            try (InputStream in = c.getAssets().open("remote.html")) {
+                html = new String(Net.readAll(in), StandardCharsets.UTF_8);
+            } catch (Exception e) {
+                return "<!doctype html><meta charset=utf-8><p>The remote page is missing from this build.</p>";
+            }
+        }
+        return html;
+    }
 
     private RemotePage() {
     }

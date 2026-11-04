@@ -157,6 +157,8 @@ public class HubActivity extends Activity {
         rows.addView(new View(this), new LinearLayout.LayoutParams(1, Ui.dp(this, 40)));
         rows.addView(personal);
 
+        // the phone remote answers whenever the dashboard is up, even before the helper service binds
+        PhoneMic.start(this);
         // J.A.R.V.I.S, small and out of the way in the corner: OK on it opens the compact panel
         FaceView orb = new FaceView(this);
         orb.setFocusable(true);
@@ -595,6 +597,14 @@ public class HubActivity extends Activity {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
-        goHome();
+        openSection(intent.getStringExtra("section"));
+    }
+
+    /** A section asked for by the phone remote, or the top of the dashboard. */
+    private void openSection(String s) {
+        if ("cinema".equals(s)) jumpTo(cinemaAnchor);
+        else if ("my".equals(s)) jumpTo(myAnchor != null ? myAnchor : cinemaAnchor);
+        else if ("ent".equals(s)) jumpTo(entAnchor);
+        else goHome();
     }
 }

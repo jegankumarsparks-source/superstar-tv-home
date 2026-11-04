@@ -158,24 +158,6 @@ final class Prefs {
         p.edit().putBoolean("saver_clock", on).apply();
     }
 
-    /** The remote's search / voice button opens J.A.R.V.I.S (needs the key service on in TV Settings). */
-    boolean jarvisButton() {
-        return p.getBoolean("jarvis_button", true);
-    }
-
-    void setJarvisButton(boolean on) {
-        p.edit().putBoolean("jarvis_button", on).apply();
-    }
-
-    /** Speech recognition language: "en-IN", "ta-IN", or "both" (English first, Tamil understood too). */
-    String micLanguage() {
-        return p.getString("mic_lang", "both");
-    }
-
-    void setMicLanguage(String v) {
-        p.edit().putString("mic_lang", v).apply();
-    }
-
     boolean speakReplies() {
         return p.getBoolean("speak", true);
     }

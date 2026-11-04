@@ -8,7 +8,6 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.speech.RecognizerIntent;
 import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -25,11 +24,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * JK Tube: a TV-first video browser in the THALAIVAR style. Search bar and voice search on top, rows of
+ * JK Tube: a TV-first video browser in the THALAIVAR style. Search bar on top, rows of
  * videos underneath, 3D focus, and playback in the official YouTube player (or the app the owner picks).
  */
 public class TubeActivity extends Activity {
-    private static final int VOICE = 41;
     /** Rows the home shows with a YouTube key: label and search. */
     private static final String[][] ROWS = {
             {"Superstar Rajinikanth", "Rajinikanth"},
@@ -85,8 +83,6 @@ public class TubeActivity extends Activity {
         slp.leftMargin = Ui.dp(this, 32);
         slp.rightMargin = Ui.dp(this, 16);
         top.addView(search, slp);
-        TextView mic = Ui.button(this, "🎤  Voice", v -> voice());
-        top.addView(mic);
         top.addView(Ui.button(this, "✦  JARVIS", v -> startActivity(new Intent(this, JarvisActivity.class))));
         page.addView(top);
         status = Ui.label(this, "", 16, Ui.DIM);
@@ -217,35 +213,5 @@ public class TubeActivity extends Activity {
         java.util.ArrayList<String> l = new java.util.ArrayList<>();
         for (YtApi.Video v : vids) l.add(v.id);
         return l;
-    }
-
-    private void voice() {
-        Intent i = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-        i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-        i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-IN");
-        i.putExtra(RecognizerIntent.EXTRA_PROMPT, "Say what to play");
-        try {
-            startActivityForResult(i, VOICE);
-        } catch (ActivityNotFoundException e) {
-            Ui.toast(this, "Voice search isn't available on this TV; use the search bar");
-        }
-    }
-
-    @Override
-    protected void onActivityResult(int req, int res, Intent data) {
-        super.onActivityResult(req, res, data);
-        if (req == VOICE && res == RESULT_OK && data != null) {
-            ArrayList<String> said = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
-            if (said != null && !said.isEmpty()) run(said.get(0));
-        }
-    }
-
-    @Override
-    public boolean onKeyDown(int keyCode, KeyEvent e) {
-        if (keyCode == KeyEvent.KEYCODE_SEARCH || keyCode == KeyEvent.KEYCODE_VOICE_ASSIST) {
-            voice();
-            return true;
-        }
-        return super.onKeyDown(keyCode, e);
     }
 }

@@ -8,9 +8,8 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- To show saved news with its time instead of trying while the TV is offline. -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <!-- J.A.R.V.I.S listens through the remote's microphone itself (SpeechRecognizer), only while its panel says Listening. -->
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <!-- The phone remote turns the screen back on ("TV on") when the TV is only resting. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <!-- Android 11+: see which streaming, music and game apps are installed, for the apps hub and "Watch on". -->
     <queries>
@@ -25,13 +24,6 @@
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" />
-        </intent>
-        <intent>
-            <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
-        </intent>
-        <!-- Android 11+: without this the speech recognition service is invisible and JARVIS cannot listen. -->
-        <intent>
-            <action android:name="android.speech.RecognitionService" />
         </intent>
         <!-- Android 11+: without this the text-to-speech engine is invisible and JARVIS cannot speak. -->
         <intent>
@@ -119,7 +111,7 @@
             </intent-filter>
         </activity>
 
-        <!-- The remote's search/voice button opens J.A.R.V.I.S anywhere (On/Off in the hub's Settings). -->
+        <!-- Home screen on power-on and the phone remote's navigation (On/Off in the hub's Settings). -->
         <service
             android:name=".JarvisKeyService"
             android:exported="true"

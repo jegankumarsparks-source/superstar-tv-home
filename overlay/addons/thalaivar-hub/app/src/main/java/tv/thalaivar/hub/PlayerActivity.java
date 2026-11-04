@@ -22,6 +22,31 @@ public class PlayerActivity extends Activity {
     private WebView web;
     private TextView info;
 
+    /** The player in front, for the phone remote's media buttons; null when none is showing. */
+    static volatile PlayerActivity showing;
+    /** What is playing, for the phone remote's "now playing". */
+    static volatile String nowTitle = "";
+
+    /** A media button from the phone remote; false when it isn't one the player knows. */
+    boolean remote(String k) {
+        String js;
+        switch (k) {
+            case "playpause": js = "toggle()"; break;
+            case "play": js = "player&&player.playVideo()"; break;
+            case "pause": js = "player&&player.pauseVideo()"; break;
+            case "rewind": js = "seek(-10)"; break;
+            case "ff": js = "seek(10)"; break;
+            case "rewind30": js = "seek(-30)"; break;
+            case "ff30": js = "seek(30)"; break;
+            case "next": js = "next()"; break;
+            case "prev": js = "prev()"; break;
+            case "stop": runOnUiThread(this::finish); return true;
+            default: return false;
+        }
+        runOnUiThread(() -> web.evaluateJavascript(js, null));
+        return true;
+    }
+
     @SuppressLint("SetJavaScriptEnabled")
     @Override
     protected void onCreate(Bundle b) {
@@ -76,6 +101,8 @@ public class PlayerActivity extends Activity {
                 + "onError:function(e){qi++;if(qi<queue.length){player.loadVideoById(queue[qi]);}else if(window.JkTube){JkTube.noneLeft();}}}});}"
                 + "function toggle(){if(!player)return;player.getPlayerState()==1?player.pauseVideo():player.playVideo();}"
                 + "function seek(d){if(player)player.seekTo(Math.max(0,player.getCurrentTime()+d),true);}"
+                + "function next(){if(player&&qi+1<queue.length){qi++;player.loadVideoById(queue[qi]);}else seek(30);}"
+                + "function prev(){if(!player)return;if(player.getCurrentTime()<5&&qi>0){qi--;player.loadVideoById(queue[qi]);}else player.seekTo(0,true);}"
                 + "</script></body></html>";
         web.loadDataWithBaseURL("https://thalaivar.tv/", html, "text/html", "utf-8", null);
     }
@@ -142,6 +169,7 @@ public class PlayerActivity extends Activity {
     /** Home or another app in front: stop the video instead of letting its sound run on. */
     @Override
     protected void onPause() {
+        if (showing == this) showing = null;
         // remember where it stopped, for Continue watching on the home screen
         String title = getIntent().getStringExtra("title");
         Prefs prefs = new Prefs(this);
@@ -164,6 +192,9 @@ public class PlayerActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        showing = this;
+        String t = getIntent().getStringExtra("title");
+        nowTitle = t == null ? "" : t;
         web.onResume();
     }
 

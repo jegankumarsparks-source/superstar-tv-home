@@ -50,19 +50,11 @@ public class SettingsActivity extends Activity {
         home.addView(choice("On", prefs.hubIsHome(), () -> prefs.setHubIsHome(true)));
         home.addView(choice("Off", !prefs.hubIsHome(), () -> prefs.setHubIsHome(false)));
 
-        LinearLayout jv = group("J.A.R.V.I.S on the remote's mic / search button (any app)");
-        jv.addView(choice("On", prefs.jarvisButton(), () -> prefs.setJarvisButton(true)));
-        jv.addView(choice("Off", !prefs.jarvisButton(), () -> prefs.setJarvisButton(false)));
+        LinearLayout jv = group("THALAIVAR TV helper service (home screen + phone remote)");
         jv.addView(Ui.button(this, "Accessibility settings", v -> Ui.start(this, new Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS))));
-        TextView svc = Ui.label(this, keyServiceOn() ? "✓ Remote button service is running" : "⚠ Turn on “J.A.R.V.I.S remote button” in TV Settings > Accessibility", 15,
+        TextView svc = Ui.label(this, keyServiceOn() ? "✓ Helper service is running" : "⚠ Turn on “THALAIVAR TV helper” in TV Settings > Accessibility", 15,
                 keyServiceOn() ? 0xFF66BB6A : 0xFFFFB74D);
         page.addView(svc);
-        LinearLayout mic = group("Mic language");
-        String ml = prefs.micLanguage();
-        mic.addView(choice("English + Tamil", "both".equals(ml), () -> prefs.setMicLanguage("both")));
-        mic.addView(choice("English (India)", "en-IN".equals(ml), () -> prefs.setMicLanguage("en-IN")));
-        mic.addView(choice("தமிழ்", "ta-IN".equals(ml), () -> prefs.setMicLanguage("ta-IN")));
-        mic.addView(Ui.button(this, "🎤 Test mic", v -> startActivity(new Intent(this, JarvisActivity.class))));
         LinearLayout sp = group("J.A.R.V.I.S speaks replies");
         sp.addView(choice("On", prefs.speakReplies(), () -> prefs.setSpeakReplies(true)));
         sp.addView(choice("Off", !prefs.speakReplies(), () -> prefs.setSpeakReplies(false)));

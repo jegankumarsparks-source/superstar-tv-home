@@ -20,10 +20,11 @@ import java.security.SecureRandom;
 import java.util.Locale;
 
 /**
- * The phone remote for J.A.R.V.I.S, paired by scanning a QR code on the TV. The QR holds a 128-bit secret
- * key in the address, so nothing is typed and nothing can be guessed. From the phone: speak to J.A.R.V.I.S
- * with the keyboard's microphone, steer the TV (arrows, OK, Back, Home, play/pause, volume), and open the
- * main apps. Home network only; the server answers only at the TV's own address and only its own page.
+ * The phone remote, paired by scanning a QR code on the TV. The QR holds a 128-bit secret key in the
+ * address, so nothing is typed and nothing can be guessed. From the phone: talk to J.A.R.V.I.S with the
+ * keyboard's microphone, every remote button (power, arrows, OK, Back, Home, volume, media keys), every app
+ * on the TV and the dashboard's own screens. Home network only; the server answers only at the TV's own
+ * address and only its own page.
  */
 final class PhoneMic {
     static final int PORT = 8787;
@@ -68,6 +69,7 @@ final class PhoneMic {
         return a == null ? null : a + "/j/" + key(c);
     }
 
+    /** Started by the helper service and by the dashboard, so the phone can connect whenever the TV is on. */
     static synchronized void start(Context context) {
         if (server != null && !server.isClosed()) return;
         Context c = context.getApplicationContext();
@@ -127,14 +129,21 @@ final class PhoneMic {
             return;
         }
         if (seg.size() == 2) {
-            reply(s, "200 OK", "text/html; charset=utf-8", RemotePage.HTML);
+            reply(s, "200 OK", "text/html; charset=utf-8", RemotePage.html(c));
             return;
         }
         // "Add to Home screen": the remote opens like an app, at its own paired address
+        // app icons for the Apps grid: plain images (an <img> cannot send the command header), nothing secret
+        if ("icon".equals(seg.get(2))) {
+            byte[] png = TvControl.icon(c, u.getQueryParameter("p"));
+            if (png == null) reply(s, "404 Not Found", "text/plain", "no icon");
+            else reply(s, "200 OK", "image/png", png);
+            return;
+        }
         if ("manifest.json".equals(seg.get(2))) {
-            reply(s, "200 OK", "application/manifest+json", "{\"name\":\"J.A.R.V.I.S Remote\",\"short_name\":\"JARVIS\","
+            reply(s, "200 OK", "application/manifest+json", "{\"name\":\"THALAIVAR TV Remote\",\"short_name\":\"Thalaivar\","
                     + "\"start_url\":\"/j/" + seg.get(1) + "\",\"scope\":\"/j/" + seg.get(1) + "\",\"display\":\"standalone\","
-                    + "\"background_color\":\"#070a14\",\"theme_color\":\"#070a14\"}");
+                    + "\"background_color\":\"#06080f\",\"theme_color\":\"#06080f\"}");
             return;
         }
         // commands come only from the page's own script (other web pages cannot add this header)
@@ -146,8 +155,17 @@ final class PhoneMic {
         boolean ok;
         switch (cmd) {
             case "ping":
-                // the phone's "Connected" light
-                ok = true;
+                // the phone's "Connected" light, volume, power, now playing and J.A.R.V.I.S's last words
+                reply(s, "200 OK", "application/json", TvControl.status(c));
+                return;
+            case "apps":
+                reply(s, "200 OK", "application/json", TvControl.apps(c));
+                return;
+            case "go":
+                ok = TvControl.go(c, u.getQueryParameter("s"), u.getQueryParameter("q"));
+                break;
+            case "vol":
+                ok = TvControl.setVolume(c, u.getQueryParameter("v"));
                 break;
             case "ask": {
                 String q = u.getQueryParameter("q");
@@ -169,7 +187,10 @@ final class PhoneMic {
     }
 
     private static void reply(Socket s, String status, String type, String body) throws Exception {
-        byte[] b = body.getBytes(StandardCharsets.UTF_8);
+        reply(s, status, type, body.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static void reply(Socket s, String status, String type, byte[] b) throws Exception {
         OutputStream out = s.getOutputStream();
         out.write(("HTTP/1.1 " + status + "\r\nContent-Type: " + type + "\r\nContent-Length: " + b.length
                 + "\r\nCache-Control: no-store\r\nReferrer-Policy: no-referrer\r\nX-Frame-Options: DENY\r\nConnection: close\r\n\r\n")

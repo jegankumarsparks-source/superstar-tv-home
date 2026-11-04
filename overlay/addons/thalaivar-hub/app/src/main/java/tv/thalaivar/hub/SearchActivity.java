@@ -71,6 +71,8 @@ public class SearchActivity extends Activity {
             }
         });
         box.requestFocus();
+        String asked = getIntent().getStringExtra("q");
+        if (asked != null) box.setText(asked);
         Ui.WORK.execute(() -> {
             List<Films.Film> l = new ArrayList<>();
             try {
