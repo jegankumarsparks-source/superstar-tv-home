@@ -147,6 +147,7 @@ public class JarvisActivity extends Activity {
                 });
             }
         });
+        Voice.warm(this);
         String prompt = getIntent().getStringExtra("q");
         if (prompt != null) handle(prompt);
         // from the remote's mic button: listen at once, while the button is still held
@@ -425,13 +426,13 @@ public class JarvisActivity extends Activity {
         if (quick != null) {
             said.setText(quick.say);
             // the action happens at once; the human voice confirms it (instant after the first time, from the cache)
-            if (new Prefs(this).speakReplies()) speak(quick.say, false);
+            if (new Prefs(this).speakReplies()) speak(quick.voice, false);
             else main.postDelayed(() -> orb.setState(FaceView.HAPPY), 600);
             Gemini.Reply r = new Gemini.Reply();
             r.action = quick.action;
             r.query = quick.query;
             r.say = quick.say;
-            main.postDelayed(() -> act(r), 450);
+            main.postDelayed(() -> act(r), 150);
             return;
         }
         said.setText("…");
@@ -573,8 +574,11 @@ public class JarvisActivity extends Activity {
         }
         Ui.WORK.execute(() -> {
             try {
-                // the top 5 matches: the first plays at once, the others are backups if one won't play here
-                List<YtApi.Video> l = YtApi.search(this, q, 5);
+                // songs: a queue of 10 from the Music category that plays one after another; anything else: the top
+                // 5 matches, the first plays at once and the others are backups if one won't play here
+                boolean songs = q.toLowerCase(Locale.ROOT).matches(".*\\b(songs?|paattu|paadal|music|hits|bgm|album)\\b.*");
+                List<YtApi.Video> l = songs ? YtApi.searchMusic(this, q, 10) : YtApi.search(this, q, 5);
+                if (songs && l.isEmpty()) l = YtApi.search(this, q, 5);
                 if (!l.isEmpty()) {
                     java.util.ArrayList<String> queue = TubeActivity.ids(l);
                     String title = l.get(0).title;

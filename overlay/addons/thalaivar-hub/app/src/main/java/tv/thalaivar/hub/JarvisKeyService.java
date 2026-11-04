@@ -40,6 +40,7 @@ public class JarvisKeyService extends AccessibilityService {
         super.onServiceConnected();
         running = this;
         PhoneMic.start(this);
+        Voice.warm(this);
     }
 
     @Override

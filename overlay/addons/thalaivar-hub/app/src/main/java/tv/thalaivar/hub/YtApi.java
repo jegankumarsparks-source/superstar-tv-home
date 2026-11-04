@@ -36,6 +36,13 @@ final class YtApi {
         return parse(Net.cached(c, "yt:" + q + max, 6 * HOUR, API + path, null).body, true);
     }
 
+    /** Songs only (YouTube's Music category), so "Anirudh songs" plays songs, not news clips about him. */
+    static List<Video> searchMusic(Context c, String q, int max) throws Exception {
+        String path = "/search?part=snippet&type=video&videoCategoryId=10&videoEmbeddable=true&safeSearch=moderate&regionCode=IN&maxResults=" + max
+                + "&q=" + Uri.encode(q) + "&key=" + BuildConfig.YT_KEY;
+        return parse(Net.cached(c, "ytm:" + q + max, 6 * HOUR, API + path, null).body, true);
+    }
+
     static List<Video> trending(Context c, int max) throws Exception {
         String path = "/videos?part=snippet&chart=mostPopular&regionCode=IN&maxResults=" + max + "&key=" + BuildConfig.YT_KEY;
         return parse(Net.cached(c, "yt:trending" + max, 3 * HOUR, API + path, null).body, false);

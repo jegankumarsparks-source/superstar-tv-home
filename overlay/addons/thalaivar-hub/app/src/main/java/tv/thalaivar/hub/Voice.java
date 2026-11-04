@@ -51,11 +51,19 @@ final class Voice {
         return pcm;
     }
 
+    /** Background: records J.A.R.V.I.S's everyday confirmations once, so even the first "play" or "open" answers instantly. */
+    static void warm(android.content.Context c) {
+        if (!Gemini.hasKey()) return;
+        Ui.WORK.execute(() -> {
+            for (String p : QuickCommand.PHRASES) natural(c, p);
+        });
+    }
+
     private static byte[] fetch(String text) {
         try {
             JSONObject body = new JSONObject();
             body.put("contents", new JSONArray().put(new JSONObject().put("parts",
-                    new JSONArray().put(new JSONObject().put("text", "Say this warmly and naturally, like a friendly assistant: " + text)))));
+                    new JSONArray().put(new JSONObject().put("text", "Say this warmly and naturally, with the cheerful energy of a Chennai Superstar fan, like a friendly assistant: " + text)))));
             body.put("generationConfig", new JSONObject()
                     .put("responseModalities", new JSONArray().put("AUDIO"))
                     .put("speechConfig", new JSONObject().put("voiceConfig", new JSONObject()

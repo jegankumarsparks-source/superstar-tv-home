@@ -71,6 +71,8 @@ public class PlayerActivity extends Activity {
                 + "var player;function onYouTubeIframeAPIReady(){player=new YT.Player('p',{width:'100%',height:'100%',videoId:" + org.json.JSONObject.quote(id) + ","
                 + "playerVars:{autoplay:1,controls:1,rel:0,playsinline:1,modestbranding:1,fs:0,start:" + new Prefs(this).savedPosition(id) + "},"
                 + "events:{onReady:function(e){e.target.playVideo();},"
+                // a queue of songs keeps going: when one ends, the next starts
+                + "onStateChange:function(e){if(e.data===0&&qi+1<queue.length){qi++;player.loadVideoById(queue[qi]);}},"
                 + "onError:function(e){qi++;if(qi<queue.length){player.loadVideoById(queue[qi]);}else if(window.JkTube){JkTube.noneLeft();}}}});}"
                 + "function toggle(){if(!player)return;player.getPlayerState()==1?player.pauseVideo():player.playVideo();}"
                 + "function seek(d){if(player)player.seekTo(Math.max(0,player.getCurrentTime()+d),true);}"
