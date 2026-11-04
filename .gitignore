@@ -1,0 +1,7 @@
+# the Clean Your TV checkout setup.ps1 makes, with your token, backups and builds inside
+cleanyourtv/
+secrets.properties
+local.properties
+.gradle/
+build/
+*.apk

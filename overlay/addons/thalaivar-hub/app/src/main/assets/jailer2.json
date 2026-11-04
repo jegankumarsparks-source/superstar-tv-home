@@ -1,0 +1,16 @@
+{
+  "title": "Jailer 2",
+  "release_date": "2026-10-15",
+  "release_note": "Theatrical release, as given to this app on 4 November 2026. Check the news row for later changes.",
+  "box_office": [
+    {
+      "scope": "Worldwide gross",
+      "figure": "above ₹816 crore",
+      "status": "reported",
+      "source": "The Indian Express",
+      "source_url": "https://indianexpress.com/about/rajinikanth/",
+      "reported_on": "2026-11-04",
+      "note": "A trade figure as reported in that day's coverage, not a number confirmed by the producers. It is not updated by this app; the news row shows newer reports."
+    }
+  ]
+}

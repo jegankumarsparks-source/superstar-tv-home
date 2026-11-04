@@ -1,0 +1,46 @@
+plugins {
+    id 'com.android.application'
+}
+
+// The TMDB read token lives in addons/thalaivar-hub/secrets.properties (git-ignored) and is built into
+// your own copy of the app: films, posters, cast and official trailers come from TMDB at run time.
+def secrets = new Properties()
+def secretsFile = rootProject.file('secrets.properties')
+if (secretsFile.exists()) secretsFile.withInputStream { secrets.load(it) }
+
+android {
+    namespace 'tv.thalaivar.hub'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'tv.thalaivar.hub'
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+        buildConfigField 'String', 'TMDB_TOKEN', "\"${secrets.getProperty('tmdb.token', '').trim()}\""
+        buildConfigField 'String', 'REGION', "\"${secrets.getProperty('region', 'IN').trim().toUpperCase()}\""
+    }
+
+    buildFeatures { buildConfig true }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')
+            // Sideloaded over ADB like the launcher: signed with the debug key. Sign your own releases with your key.
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    // Test only (never in the APK): plain JVM tests for the news classifier and the rotation, src/test.
+    testImplementation 'junit:junit:4.13.2'
+}

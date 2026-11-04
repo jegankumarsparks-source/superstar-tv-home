@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The TV banner: THALAIVAR TV's own gold mark, drawn by tools/thalaivar/make_art.py. -->
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:src="@drawable/banner_art"
+    android:gravity="fill" />

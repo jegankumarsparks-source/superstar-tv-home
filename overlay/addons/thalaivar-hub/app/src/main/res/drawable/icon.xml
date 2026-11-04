@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A gold five-point star on black: the app icon. Drawn for this add-on, no third-party art. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#FF0A0604" android:pathData="M0,0h108v108h-108z" />
+    <path android:fillColor="#FFD4AF37"
+        android:pathData="M54,18L62.5,42.3L88.2,42.9L67.7,58.5L75.2,83.1L54,68.5L32.8,83.1L40.3,58.5L19.8,42.9L45.5,42.3Z" />
+</vector>

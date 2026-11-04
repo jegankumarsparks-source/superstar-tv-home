@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tamil weekday and month names are long: the date goes on its own line. -->
+<resources>
+    <bool name="date_single_line">false</bool>
+</resources>

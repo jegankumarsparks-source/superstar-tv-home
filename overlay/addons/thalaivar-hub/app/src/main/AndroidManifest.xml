@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+
+    <!-- TMDB (films, posters, cast, official trailers) and Google News RSS (headlines). Nothing else. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- To show saved news with its time instead of trying while the TV is offline. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Android 11+: see which streaming, music and game apps are installed, for the apps hub and "Watch on". -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+    </queries>
+
+    <application
+        android:allowBackup="false"
+        android:banner="@drawable/banner"
+        android:icon="@drawable/icon"
+        android:label="Thalaivar TV"
+        android:supportsRtl="false"
+        android:largeHeap="false"
+        android:theme="@style/Thalaivar">
+
+        <activity
+            android:name=".HubActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:screenOrientation="landscape">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+            <!-- Clean Your TV module card (docs/specs/card.md): shown as "Thalaivar TV" once the owner says Show. -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="com.gathin.tvhome.category.DOCK_CARD" />
+            </intent-filter>
+            <meta-data android:name="com.gathin.tvhome.card" android:resource="@xml/module_card" />
+        </activity>
+
+        <activity android:name=".MovieActivity" android:exported="false" android:screenOrientation="landscape" />
+        <activity android:name=".SpecialActivity" android:exported="false" android:screenOrientation="landscape" />
+        <activity android:name=".MomentsActivity" android:exported="false" android:screenOrientation="landscape" />
+        <activity android:name=".NewsActivity" android:exported="false" android:screenOrientation="landscape" />
+        <activity android:name=".AppsActivity" android:exported="false" android:screenOrientation="landscape" />
+        <activity android:name=".WallpaperActivity" android:exported="false" android:screenOrientation="landscape" />
+        <activity android:name=".SettingsActivity" android:exported="false" android:screenOrientation="landscape" />
+        <activity android:name=".SaverActivity" android:exported="false" android:screenOrientation="landscape" />
+
+        <!-- Screensavers: pick one in the TV's Settings > Screen saver. -->
+        <service
+            android:name=".ThalaivarDream"
+            android:exported="true"
+            android:label="Thalaivar TV"
+            android:permission="android.permission.BIND_DREAM_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.dreams.DreamService" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".BaashaDream"
+            android:exported="true"
+            android:label="Baasha - The Evergreen Emperor"
+            android:permission="android.permission.BIND_DREAM_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.dreams.DreamService" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </service>
+    </application>
+</manifest>
