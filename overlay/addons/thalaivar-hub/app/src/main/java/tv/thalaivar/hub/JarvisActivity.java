@@ -148,11 +148,33 @@ public class JarvisActivity extends Activity {
             }
         });
         Voice.warm(this);
+        if (getIntent().getBooleanExtra("over_google", false)) coverGoogle();
         String prompt = getIntent().getStringExtra("q");
         if (prompt != null) handle(prompt);
         // from the remote's mic button: listen at once, while the button is still held
         else if (Gemini.hasKey()) main.postDelayed(this::listen, getIntent().getBooleanExtra("hold", false) ? 0 : 400);
     }
+
+    /**
+     * Opened over Google's "not available" screen (the remote's mic button): the screen behind the panel goes
+     * dark until Google's screen has closed itself in the background, then lights up again.
+     */
+    private void coverGoogle() {
+        android.view.Window w = getWindow();
+        w.addFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+        android.view.WindowManager.LayoutParams a = w.getAttributes();
+        a.dimAmount = 1f;
+        w.setAttributes(a);
+        main.removeCallbacks(uncover);
+        main.postDelayed(uncover, 6500);
+    }
+
+    private final Runnable uncover = () -> {
+        android.view.WindowManager.LayoutParams a = getWindow().getAttributes();
+        a.dimAmount = 0f;
+        getWindow().setAttributes(a);
+        getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+    };
 
     /** True while the panel is in front: the key service then leaves Google's voice engine alone. */
     static volatile boolean onScreen;
@@ -192,7 +214,7 @@ public class JarvisActivity extends Activity {
     /** The language extras both listening paths share. */
     private void putLanguage(Intent i) {
         i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-        i.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
+        i.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 5);
         if (plainEnglish) {
             // the retry after a missing language pack: the language every engine has
             i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US");
@@ -239,7 +261,7 @@ public class JarvisActivity extends Activity {
             recognizer.setRecognitionListener(new android.speech.RecognitionListener() {
                 @Override public void onReadyForSpeech(Bundle p) {
                     orb.setState(FaceView.LISTENING);
-                    heard.setText("Listening… hold the remote's mic button and speak");
+                    heard.setText("🎤 Listening… speak now");
                 }
                 @Override public void onBeginningOfSpeech() {
                     gotSpeech = true;
@@ -266,8 +288,13 @@ public class JarvisActivity extends Activity {
                     listeningNow = false;
                     retried = false;
                     orb.setState(FaceView.IDLE);
+                    quiet(false);
                     ArrayList<String> r = p.getStringArrayList(android.speech.SpeechRecognizer.RESULTS_RECOGNITION);
                     String fin = r != null && !r.isEmpty() ? r.get(0).trim() : "";
+                    // of the engine's guesses, the first that is a command the TV knows ("open Netflix" over "often at flicks")
+                    if (r != null && QuickCommand.parse(fin) == null) {
+                        for (String alt : r) if (alt != null && QuickCommand.parse(alt) != null) { fin = alt.trim(); break; }
+                    }
                     // whichever is fuller: the final words, or what was already shown while listening
                     String use = fin.length() >= lastPartial.trim().length() ? fin : lastPartial.trim();
                     if (!use.isEmpty()) handle(use);
@@ -293,7 +320,27 @@ public class JarvisActivity extends Activity {
         gotPartial = false;
         lastPartial = "";
         listeningNow = true;
+        quiet(true);
         recognizer.startListening(i);
+    }
+
+    private android.media.AudioFocusRequest focus;
+
+    /** While listening, other sound on the TV pauses, so the TV's microphone hears the voice and not the film. */
+    private void quiet(boolean on) {
+        android.media.AudioManager am = (android.media.AudioManager) getSystemService(AUDIO_SERVICE);
+        if (am == null) return;
+        if (on && focus == null) {
+            focus = new android.media.AudioFocusRequest.Builder(android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE)
+                    .setAudioAttributes(new android.media.AudioAttributes.Builder()
+                            .setUsage(android.media.AudioAttributes.USAGE_ASSISTANT)
+                            .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH).build())
+                    .build();
+            am.requestAudioFocus(focus);
+        } else if (!on && focus != null) {
+            am.abandonAudioFocusRequest(focus);
+            focus = null;
+        }
     }
 
     /** Set after the first engine fails to start: the next listen uses the other one, in plain English. */
@@ -308,6 +355,7 @@ public class JarvisActivity extends Activity {
     /** What went wrong, in words the person can act on. */
     private void micTrouble(int error) {
         listeningNow = false;
+        quiet(false);
         orb.setState(FaceView.IDLE);
         // words were already on screen when the engine gave up: answer those instead of an error
         if (!lastPartial.trim().isEmpty()) {
@@ -331,7 +379,7 @@ public class JarvisActivity extends Activity {
         // heard nothing the first time: listen once more straight away instead of giving up
         if (nothingHeard && !retried) {
             retried = true;
-            said.setText("I didn't hear anything. Listening again — hold the remote's mic button and speak.");
+            said.setText("I didn't catch that. Listening again — speak now.");
             main.postDelayed(this::listen, 500);
             return;
         }
@@ -341,10 +389,10 @@ public class JarvisActivity extends Activity {
             case android.speech.SpeechRecognizer.ERROR_NO_MATCH:
             case android.speech.SpeechRecognizer.ERROR_SPEECH_TIMEOUT:
                 why = gotSpeech ? "I heard you but couldn't make out the words. Try again, a little slower."
-                        : "No sound reached me. Hold the mic button on the remote the whole time you speak.";
+                        : "No sound reached me. Speak a little louder, facing the TV — or use the phone remote.";
                 break;
             case android.speech.SpeechRecognizer.ERROR_AUDIO:
-                why = "The remote's microphone didn't open. Hold the mic button on the remote while you speak.";
+                why = "The microphone didn't open. Press the mic button again.";
                 break;
             case android.speech.SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS:
                 why = "I need the microphone permission. Press OK and allow it.";
@@ -409,6 +457,7 @@ public class JarvisActivity extends Activity {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
+        if (intent.getBooleanExtra("over_google", false)) coverGoogle();
         String q = intent.getStringExtra("q");
         if (q != null) handle(q);
         else if (Gemini.hasKey() && !listeningNow) listen();
@@ -645,6 +694,7 @@ public class JarvisActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        quiet(false);
         if (recognizer != null) recognizer.destroy();
         Voice.stop();
         main.removeCallbacksAndMessages(null);

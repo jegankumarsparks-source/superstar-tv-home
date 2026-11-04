@@ -81,15 +81,20 @@ public class JarvisKeyService extends AccessibilityService {
             return;
         }
         if (!GOOGLE_VOICE.contentEquals(pkg) || !new Prefs(this).jarvisButton()) return;
-        // J.A.R.V.I.S's own listening uses Google's voice engine too: never close anything while it is on screen
-        if (JarvisActivity.onScreen) return;
+        // Google's assistant screen (an Activity) only ever comes from the mic button: hand over at once, even
+        // while J.A.R.V.I.S is open. Anything else from that package while J.A.R.V.I.S is on screen is its own
+        // listening (the same voice engine), which must be left alone.
+        boolean assistantScreen = cls != null && cls.toString().endsWith("Activity");
+        if (!assistantScreen && JarvisActivity.onScreen) return;
         long now = android.os.SystemClock.uptimeMillis();
-        if (now - lastHandOver < 2500) return;
+        if (now - lastHandOver < 1200) return;
         lastHandOver = now;
-        performGlobalAction(GLOBAL_ACTION_BACK);
-        main.postDelayed(() -> startActivity(new Intent(this, JarvisActivity.class)
+        // J.A.R.V.I.S comes straight to the front over Google's screen, which closes itself in the background a
+        // few seconds later. No Back press: Back could land on J.A.R.V.I.S or the film underneath instead.
+        startActivity(new Intent(this, JarvisActivity.class)
                 .putExtra("hold", true)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP)), 120);
+                .putExtra("over_google", true)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP));
     }
 
     @Override
