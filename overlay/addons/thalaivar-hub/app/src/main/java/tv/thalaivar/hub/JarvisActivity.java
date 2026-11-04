@@ -153,6 +153,7 @@ public class JarvisActivity extends Activity {
             }
         });
         Voice.warm(this);
+        LiveJarvis.warm(this);
         String prompt = getIntent().getStringExtra("q");
         if (prompt != null) handle(prompt);
         else typed.requestFocus();
@@ -194,8 +195,8 @@ public class JarvisActivity extends Activity {
         if (quick != null) {
             said.setText(quick.say);
             remember(quick.say);
-            // the action happens at once; the human voice confirms it (instant after the first time, from the cache)
-            if (new Prefs(this).speakReplies()) speak(quick.voice, false);
+            // the action happens at once; the human voice confirms it (a kept phrase, or Live saying it)
+            if (new Prefs(this).speakReplies()) confirm(quick);
             else main.postDelayed(() -> orb.setState(FaceView.HAPPY), 600);
             Gemini.Reply r = new Gemini.Reply();
             r.action = quick.action;
@@ -206,7 +207,76 @@ public class JarvisActivity extends Activity {
         }
         said.setText("…");
         orb.setState(FaceView.THINKING);
-        if (new Prefs(this).speakReplies()) speakCachedOnly(QuickCommand.THINKING);
+        askLive(text.trim());
+    }
+
+    /** The question through Gemini Live: the human voice starts within about a second, the words alongside. */
+    private void askLive(String text) {
+        LiveJarvis.ask(this, text, appNames(), new Prefs(this).speakReplies(), new LiveJarvis.Listener() {
+            @Override public void words(String soFar) {
+                if (isDestroyed()) return;
+                said.setText(soFar);
+                remember(soFar);
+                orb.setState(FaceView.SPEAKING);
+            }
+            @Override public void tool(String name, org.json.JSONObject args) {
+                if (isDestroyed()) return;
+                Gemini.Reply r = new Gemini.Reply();
+                switch (name) {
+                    case "play_video": r.action = "play"; r.query = args.optString("query"); break;
+                    case "open_app": r.action = "open_app"; r.query = args.optString("name"); break;
+                    case "open_film": r.action = "film"; r.query = args.optString("title"); break;
+                    case "show": {
+                        String sc = args.optString("screen").toLowerCase(Locale.ROOT);
+                        r.action = sc.contains("news") ? "news" : sc.contains("photo") ? "photos"
+                                : sc.contains("saver") ? "screensaver" : sc.contains("tube") ? "tube" : "none";
+                        break;
+                    }
+                    default: r.action = "none";
+                }
+                act(r);
+            }
+            @Override public void done(String all) {
+                if (isDestroyed()) return;
+                if (!all.isEmpty()) {
+                    said.setText(all);
+                    remember(all);
+                }
+                orb.setState(FaceView.HAPPY);
+                main.postDelayed(() -> orb.setState(FaceView.IDLE), 1400);
+            }
+            @Override public void failed() {
+                if (!isDestroyed()) askText(text);
+            }
+        });
+    }
+
+    private List<String> appNames() {
+        List<String> names = new ArrayList<>();
+        for (ResolveInfo r : apps) names.add(r.loadLabel(getPackageManager()).toString());
+        return names;
+    }
+
+    /** A kept phrase plays at once; otherwise Live says the confirmation in the same human voice. */
+    private void confirm(QuickCommand quick) {
+        Ui.WORK.execute(() -> {
+            byte[] pcm = Voice.cached(this, quick.voice);
+            if (pcm != null) {
+                main.post(() -> { if (!isFinishing()) Voice.play(pcm); });
+                return;
+            }
+            LiveJarvis.ask(this, "The TV is already doing this, so do not call any tool: " + quick.say
+                    + " Confirm it to Thalaiva in five words or fewer.", appNames(), true, new LiveJarvis.Listener() {
+                @Override public void words(String soFar) { }
+                @Override public void tool(String name, org.json.JSONObject args) { }
+                @Override public void done(String all) { }
+                @Override public void failed() { main.post(() -> speak(quick.voice, false)); }
+            });
+        });
+    }
+
+    /** The fallback when Live can't answer: the text models, then the voice. */
+    private void askText(String text) {
         history.add(new String[]{"user", text.trim()});
         while (history.size() > 8) history.remove(0);
         List<String> names = new ArrayList<>();
@@ -294,16 +364,6 @@ public class JarvisActivity extends Activity {
                     orb.setState(FaceView.HAPPY);
                     main.postDelayed(() -> { if (turn == speechTurn) orb.setState(FaceView.IDLE); }, 1400);
                 }, ms + 150);
-            });
-        });
-    }
-
-    /** A phrase in the human voice only if it is already kept on the TV: instant, never a network wait. */
-    private void speakCachedOnly(String text) {
-        Ui.WORK.execute(() -> {
-            byte[] pcm = Voice.cached(this, text);
-            if (pcm != null) main.post(() -> {
-                if (!isFinishing()) Voice.play(pcm);
             });
         });
     }
@@ -417,6 +477,7 @@ public class JarvisActivity extends Activity {
     @Override
     protected void onDestroy() {
         Voice.stop();
+        LiveJarvis.stopAudio();
         main.removeCallbacksAndMessages(null);
         if (tts != null) {
             tts.stop();

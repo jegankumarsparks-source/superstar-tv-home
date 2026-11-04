@@ -53,6 +53,41 @@ final class FilmAnswer {
         }
     }
 
+    /**
+     * Everything the TV knows about one of his films, as plain text for J.A.R.V.I.S to answer from: release, director,
+     * music, the cast with their roles, runtime and the story. Null when the film isn't found.
+     */
+    static String facts(Context c, String title) {
+        if (!Tmdb.hasToken() || title == null || title.trim().isEmpty()) return null;
+        try {
+            Films.Film film = find(c, title.toLowerCase(Locale.ROOT).trim());
+            if (film == null) return null;
+            JSONObject m = Tmdb.movie(c, film.id);
+            StringBuilder b = new StringBuilder(m.optString("title", film.title));
+            String date = m.optString("release_date", "");
+            if (!date.isEmpty()) b.append(", released ").append(spokenDate(date));
+            String d = Tmdb.director(m), mu = Tmdb.music(m);
+            if (!d.isEmpty()) b.append(". Directed by ").append(d);
+            if (!mu.isEmpty()) b.append(". Music by ").append(mu);
+            JSONObject cr = m.optJSONObject("credits");
+            org.json.JSONArray cast = cr == null ? null : cr.optJSONArray("cast");
+            if (cast != null && cast.length() > 0) {
+                b.append(". Cast in billing order: ");
+                for (int i = 0; i < Math.min(10, cast.length()); i++) {
+                    JSONObject o = cast.optJSONObject(i);
+                    if (o == null) continue;
+                    b.append(i == 0 ? "" : "; ").append(o.optString("name"));
+                    if (!o.optString("character").isEmpty()) b.append(" as ").append(o.optString("character"));
+                }
+            }
+            if (m.optInt("runtime") > 0) b.append(". Runtime ").append(m.optInt("runtime")).append(" minutes");
+            if (!m.optString("overview").isEmpty()) b.append(". Story: ").append(m.optString("overview"));
+            return b.toString();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     /** The lead films first (their English or Tamil names), then his whole filmography; longest name wins. */
     private static Films.Film find(Context c, String s) throws Exception {
         Films.Film best = null;

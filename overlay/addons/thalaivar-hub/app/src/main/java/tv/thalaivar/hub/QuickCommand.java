@@ -23,9 +23,7 @@ final class QuickCommand {
     static final String NEWS = "Latest news, coming right up, Thalaiva!", PHOTOS = "Here are the photos, Thalaiva!",
             SAVER = "Screensaver on, Thalaiva!", TUBE = "JK Tube is ready, Thalaiva!", PLAY = "Playing it now, Thalaiva!",
             OPEN = "Opening it now, Thalaiva!";
-    /** Said at once while a question goes to Gemini, so J.A.R.V.I.S never sits silent. */
-    static final String THINKING = "One moment, Thalaiva!";
-    static final String[] PHRASES = {NEWS, PHOTOS, SAVER, TUBE, PLAY, OPEN, THINKING};
+    static final String[] PHRASES = {NEWS, PHOTOS, SAVER, TUBE, PLAY, OPEN};
 
     private static final String TAIL = "(?:\\s+(?:pannu|pannunga|panu|podu|pottu|poodu|please|now|da|machi|venum))*\\s*[.!?]*$";
     private static final Pattern OPEN_FIRST = Pattern.compile("^(?:please\\s+)?(?:open|launch|start|go to|show me|show)\\s+(?:the\\s+)?(.+?)(?:\\s+app)?" + TAIL);

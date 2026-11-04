@@ -338,7 +338,7 @@ function ping(){var ctl=new AbortController(),t=setTimeout(function(){ctl.abort(
     if(j.max!=null&&!dragging)showVol(j.vol,j.max,j.muted);
     $('now').classList.toggle('show',!!j.now);$('nowt').textContent=j.now||'';
     if(j.saidAt)seenAt=Math.max(seenAt,j.saidAt);
-    if(waitFor&&j.saidAt&&j.saidAt>waitFor&&j.said){waitEl.textContent=j.said;waitEl.classList.remove('wait');waitFor=0}
+    if(waitEl&&waitFor&&j.saidAt&&j.saidAt>waitFor&&j.said){waitEl.textContent=j.said;waitEl.classList.remove('wait')}
   }).catch(function(){clearTimeout(t);document.body.classList.add('away');live.className='live';lt.textContent='TV OFF OR AWAY · RETRYING';tvOn=false;$('power').classList.add('off')})}
 function loop(){clearTimeout(timer);ping();timer=setTimeout(loop,Date.now()<fastUntil?700:3000)}
 function fast(){fastUntil=Date.now()+20000;loop()}

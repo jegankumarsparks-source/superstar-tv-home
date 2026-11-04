@@ -155,6 +155,8 @@ final class PhoneMic {
         boolean ok;
         switch (cmd) {
             case "ping":
+                // the phone remote is open: have J.A.R.V.I.S's voice connection ready before the first question
+                LiveJarvis.warm(c);
                 // the phone's "Connected" light, volume, power, now playing and J.A.R.V.I.S's last words
                 reply(s, "200 OK", "application/json", TvControl.status(c));
                 return;
