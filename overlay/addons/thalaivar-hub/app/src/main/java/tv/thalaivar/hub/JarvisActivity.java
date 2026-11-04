@@ -206,6 +206,7 @@ public class JarvisActivity extends Activity {
         }
         said.setText("…");
         orb.setState(FaceView.THINKING);
+        if (new Prefs(this).speakReplies()) speakCachedOnly(QuickCommand.THINKING);
         history.add(new String[]{"user", text.trim()});
         while (history.size() > 8) history.remove(0);
         List<String> names = new ArrayList<>();
@@ -274,7 +275,7 @@ public class JarvisActivity extends Activity {
             tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "jarvis");
         };
         // always the human voice; the TV's own voice only if Google's voice service doesn't answer within 10 s
-        main.postDelayed(fallback, 10000);
+        main.postDelayed(fallback, 8000);
         Ui.WORK.execute(() -> {
             byte[] pcm = Voice.natural(this, text);
             main.post(() -> {
@@ -293,6 +294,16 @@ public class JarvisActivity extends Activity {
                     orb.setState(FaceView.HAPPY);
                     main.postDelayed(() -> { if (turn == speechTurn) orb.setState(FaceView.IDLE); }, 1400);
                 }, ms + 150);
+            });
+        });
+    }
+
+    /** A phrase in the human voice only if it is already kept on the TV: instant, never a network wait. */
+    private void speakCachedOnly(String text) {
+        Ui.WORK.execute(() -> {
+            byte[] pcm = Voice.cached(this, text);
+            if (pcm != null) main.post(() -> {
+                if (!isFinishing()) Voice.play(pcm);
             });
         });
     }

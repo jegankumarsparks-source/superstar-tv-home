@@ -58,7 +58,9 @@ final class Gemini {
 
     /** Fast on the free tier (about 5 s) but it sometimes answers 500; raced against the Gemini model. */
     static final String FAST_MODEL = "gemma-4-26b-a4b-it";
-    private static final java.util.concurrent.ExecutorService RACE = java.util.concurrent.Executors.newFixedThreadPool(2);
+    /** A second Gemini model with its own quota, raced without search (search makes answers slower). */
+    static final String QUICK_MODEL = "gemini-3.5-flash-lite";
+    private static final java.util.concurrent.ExecutorService RACE = java.util.concurrent.Executors.newFixedThreadPool(3);
 
     /**
      * Asks Gemma and Gemini at the same time and returns whichever answers well first, so a reply arrives in
@@ -68,7 +70,8 @@ final class Gemini {
         java.util.concurrent.ExecutorCompletionService<Reply> race = new java.util.concurrent.ExecutorCompletionService<>(RACE);
         java.util.List<java.util.concurrent.Future<Reply>> runs = new java.util.ArrayList<>();
         runs.add(race.submit(() -> askGemma(history, apps)));
-        runs.add(race.submit(() -> askGemini(ctx, history, apps)));
+        runs.add(race.submit(() -> askGemini(ctx, history, apps, MODEL, true)));
+        runs.add(race.submit(() -> askGemini(ctx, history, apps, QUICK_MODEL, false)));
         Exception last = null;
         try {
             for (int i = 0; i < runs.size(); i++) {
@@ -103,7 +106,8 @@ final class Gemini {
         return parse(Net.postJson(url, h, body.toString(), 6, 150));
     }
 
-    private static Reply askGemini(android.content.Context ctx, List<String[]> history, List<String> apps) throws Exception {
+    private static Reply askGemini(android.content.Context ctx, List<String[]> history, List<String> apps, String model,
+                                   boolean search) throws Exception {
         restore(ctx);
         JSONObject body = new JSONObject();
         body.put("systemInstruction", new JSONObject().put("parts", new JSONArray().put(new JSONObject().put("text", system(apps)))));
@@ -117,9 +121,9 @@ final class Gemini {
         body.put("generationConfig", new JSONObject().put("temperature", 0.4).put("maxOutputTokens", 600));
         Map<String, String> h = new HashMap<>();
         h.put("x-goog-api-key", BuildConfig.GEMINI_KEY);
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/" + MODEL + ":generateContent";
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent";
         String res;
-        if (System.currentTimeMillis() >= groundingOffUntil) {
+        if (search && System.currentTimeMillis() >= groundingOffUntil) {
             body.put("tools", new JSONArray().put(new JSONObject().put("google_search", new JSONObject())));
             try {
                 res = Net.postJson(url, h, body.toString());
