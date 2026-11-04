@@ -36,6 +36,9 @@ every Android TV).
 | 🔥 **JAILER 2 zone** | Release info, box office **with source, date and a "reported estimate" label**, cast, official videos, Jailer 2 news |
 | ⚡ **Iconic moments** | Mass entries, style, punch dialogues, comedy, action, interviews, audio launches, fan celebrations: one press opens official YouTube results |
 | 📰 **Live news engine** | Rajinikanth, Jailer 2, box office, Dharman and the KH x RK film; every headline shows its publisher, age and a **CONFIRMED / REPORTED / RUMOUR** badge; works offline with the saved copy |
+| 🤖 **J.A.R.V.I.S voice assistant** | A floating assistant with its own animated 3D face (an original character): ask anything, "open Netflix", "play Anirudh songs", "latest news". Everyday commands run on the TV in under 2 seconds; questions are answered by Gemini in a natural human voice. Opens from the remote's mic button in any app, with an On/Off switch |
+| ▶️ **JK Tube** | A TV-first video browser: search bar, voice search, official trailers row, trending and Tamil rows (with a YouTube key), and every video opens in the player you choose — SmartTube when it's installed |
+| 🖼️ **Full-screen photos** | His portraits and every film's stills, one at a time across the whole screen with a 3D swing between them, slideshow, and ★ to add any picture to the screensaver |
 | 📺 **Apps hub** | Every app on your TV, auto-sorted into Entertainment, Music, Live TV, Games and Tools; pin your favourites |
 | 🖼️ **Wallpapers & screensavers** | Star film stills for the "Thalaivar TV" and "Baasha" screensavers: crossfade, slow zoom, clock and date |
 | ⚙️ **Made for TV hardware** | Full remote control, Low / Medium / High animation (auto-picked from the TV's memory), English or Tamil |
@@ -84,7 +87,8 @@ and other non-Android TVs are not supported.
 - **Nothing is deleted or disabled.** Your apps, Play Store, Netflix certification and system settings stay as they are.
 - **Backup first:** the installer saves your Home, app list and settings before it changes anything.
 - **Your Home is never changed without you:** `make-home.ps1` asks you to type YES, and `restore.ps1` undoes it.
-- **No ads, no tracking.** The hub contacts only TMDB (film data) and Google News RSS (headlines).
+- **No ads, no tracking.** The hub contacts only TMDB (film data), Google News RSS (headlines), and — only if you add the keys — Gemini (the assistant) and the YouTube Data API (JK Tube search).
+- **Your keys stay yours.** They live in a git-ignored file on your PC and in your own build of the app; nothing is committed.
 
 ## How it is built
 

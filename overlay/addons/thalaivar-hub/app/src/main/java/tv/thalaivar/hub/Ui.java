@@ -31,6 +31,8 @@ final class Ui {
     static final String YT_TV = "com.google.android.youtube.tv";
 
     private static Typeface cinzel, bebas, montserrat;
+    /** One small shared pool for the voice, video and photo screens' network work. */
+    static final java.util.concurrent.ExecutorService WORK = java.util.concurrent.Executors.newFixedThreadPool(2);
 
     static int dp(Context c, float v) {
         return Math.round(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v, c.getResources().getDisplayMetrics()));
@@ -264,13 +266,19 @@ final class Ui {
 
     /** An official video, in the YouTube app on the TV. */
     static void youtube(Activity a, String key) {
-        Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com/watch?v=" + key));
-        i.setPackage(YT_TV);
-        if (!start(a, i)) start(a, new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com/watch?v=" + key)));
+        // every video in the app goes to the owner's chosen player (SmartTube when installed)
+        TubeActivity.play(a, key, "");
     }
 
     /** A search in the YouTube app, for songs and moments: YouTube decides what is there, nothing is copied here. */
     static void youtubeSearch(Activity a, String query) {
+        String with = new Prefs(a).resolvedPlayer();
+        if (with.contains(".")) {
+            // the chosen video app (SmartTube) opens YouTube search links itself
+            Intent r = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com/results?search_query=" + Uri.encode(query)));
+            r.setPackage(with);
+            if (start(a, r)) return;
+        }
         Intent s = new Intent(Intent.ACTION_SEARCH);
         s.setPackage(YT_TV);
         s.putExtra(SearchManager.QUERY, query);

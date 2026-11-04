@@ -396,6 +396,61 @@ def logo(size=(1280, 720)):
         W, H = W0, H0
 
 
+def jktube_banner(size=(320, 180)):
+    """JK Tube's TV banner: a gold star with a play mark cut into it, on crimson and black."""
+    w, h = size
+    global W, H
+    W0, H0 = W, H
+    W, H = w, h
+    try:
+        a = np.zeros((h, w, 3), np.float32) + 6
+        a += radial(0.3, 0.5, 0.6, RED, 1.0)
+        a += radial(0.3, 0.5, 0.25, (255, 120, 60), 0.5)
+        img = to_img(vignette(a, 0.6))
+        img = particles(img, 31, 60, GOLD_HI, 1.6)
+        d = ImageDraw.Draw(img)
+        cx, cy, r1, r2 = int(w * 0.24), h // 2, int(h * 0.36), int(h * 0.15)
+        pts = []
+        for i in range(10):
+            r = r1 if i % 2 == 0 else r2
+            ang = -math.pi / 2 + i * math.pi / 5
+            pts.append((cx + r * math.cos(ang), cy + r * math.sin(ang)))
+        d.polygon(pts, fill=GOLD_HI)
+        t = int(h * 0.09)
+        d.polygon([(cx - t * 0.7, cy - t), (cx - t * 0.7, cy + t), (cx + t, cy)], fill=(20, 8, 6))
+        img = gold_text(img, (int(w * 0.68), int(h * 0.44)), "JK TUBE", cinzel(int(h * 0.2)), glow=6)
+        img = plain_text(img, (int(w * 0.68), int(h * 0.68)), "WATCH  •  SEARCH  •  SPEAK", bebas(int(h * 0.085)),
+                         (240, 225, 200), alpha=210, spacing=2)
+        return img
+    finally:
+        W, H = W0, H0
+
+
+def jarvis_banner(size=(320, 180)):
+    """The assistant's TV banner: a gold core in broken rings on deep blue-black (original drawing)."""
+    w, h = size
+    global W, H
+    W0, H0 = W, H
+    W, H = w, h
+    try:
+        a = np.zeros((h, w, 3), np.float32) + 4
+        a += radial(0.27, 0.5, 0.55, (20, 40, 90), 1.0)
+        a += radial(0.27, 0.5, 0.18, GOLD_HI, 1.0)
+        img = to_img(vignette(a, 0.6))
+        img = particles(img, 41, 50, GOLD_HI, 1.4)
+        d = ImageDraw.Draw(img)
+        cx, cy = int(w * 0.27), h // 2
+        for i, (r, start, span, width) in enumerate([(0.30, 20, 230, 3), (0.38, 200, 200, 2), (0.45, 90, 160, 2)]):
+            rr = int(h * r)
+            d.arc((cx - rr, cy - rr, cx + rr, cy + rr), start, start + span, fill=GOLD_HI, width=max(1, int(width * h / 180)))
+        img = gold_text(img, (int(w * 0.70), int(h * 0.44)), "J.A.R.V.I.S", cinzel(int(h * 0.15)), glow=6)
+        img = plain_text(img, (int(w * 0.70), int(h * 0.66)), "SPEAK  •  ASK  •  PLAY", bebas(int(h * 0.085)),
+                         (225, 230, 245), alpha=210, spacing=2)
+        return img
+    finally:
+        W, H = W0, H0
+
+
 def main():
     os.makedirs(WALLS, exist_ok=True)
     only = set(sys.argv[1:])
@@ -417,6 +472,8 @@ def main():
     os.makedirs(nodpi, exist_ok=True)
     save_jpeg(logo((1280, 720)), os.path.join(nodpi, "logo_splash.jpg"), 200_000)
     logo((320, 180)).save(os.path.join(nodpi, "banner_art.png"))
+    jktube_banner().save(os.path.join(nodpi, "jktube_banner.png"))
+    jarvis_banner().save(os.path.join(nodpi, "jarvis_banner.png"))
     print("logo + banner written")
 
 

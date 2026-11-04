@@ -8,6 +8,9 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- To show saved news with its time instead of trying while the TV is offline. -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- J.A.R.V.I.S listens through the remote's microphone itself (SpeechRecognizer), only while its panel says Listening. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
 
     <!-- Android 11+: see which streaming, music and game apps are installed, for the apps hub and "Watch on". -->
     <queries>
@@ -22,6 +25,17 @@
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
+        </intent>
+        <!-- Android 11+: without this the speech recognition service is invisible and JARVIS cannot listen. -->
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+        <!-- Android 11+: without this the text-to-speech engine is invisible and JARVIS cannot speak. -->
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
         </intent>
     </queries>
 
@@ -59,6 +73,55 @@
         <activity android:name=".WallpaperActivity" android:exported="false" android:screenOrientation="landscape" />
         <activity android:name=".SettingsActivity" android:exported="false" android:screenOrientation="landscape" />
         <activity android:name=".SaverActivity" android:exported="false" android:screenOrientation="landscape" />
+        <activity android:name=".PhotoActivity" android:exported="false" android:screenOrientation="landscape" />
+        <activity android:name=".PlayerActivity" android:exported="false" android:screenOrientation="landscape"
+            android:configChanges="orientation|screenSize|keyboardHidden" />
+
+        <!-- J.A.R.V.I.S: the Gemini voice assistant, its own tile on the TV. -->
+        <activity
+            android:name=".JarvisActivity"
+            android:exported="true"
+            android:label="J.A.R.V.I.S"
+            android:banner="@drawable/jarvis_banner"
+            android:icon="@drawable/jarvis_banner"
+            android:theme="@style/Jarvis"
+            android:launchMode="singleTask"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:windowSoftInputMode="stateHidden|adjustPan"
+            android:screenOrientation="landscape">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- JK Tube: its own tile on the TV, with its own banner. -->
+        <activity
+            android:name=".TubeActivity"
+            android:exported="true"
+            android:label="JK Tube"
+            android:banner="@drawable/jktube_banner"
+            android:icon="@drawable/jktube_banner"
+            android:windowSoftInputMode="stateHidden|adjustPan"
+            android:screenOrientation="landscape">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- The remote's search/voice button opens J.A.R.V.I.S anywhere (On/Off in the hub's Settings). -->
+        <service
+            android:name=".JarvisKeyService"
+            android:exported="true"
+            android:label="@string/jarvis_key_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data android:name="android.accessibilityservice" android:resource="@xml/jarvis_key_service" />
+        </service>
 
         <!-- Screensavers: pick one in the TV's Settings > Screen saver. -->
         <service

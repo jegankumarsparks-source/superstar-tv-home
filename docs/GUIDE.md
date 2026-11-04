@@ -67,6 +67,21 @@ Kodak, Thomson, iFFALCON, Chromecast with Google TV, Google TV Streamer, NVIDIA 
 
 `setup.ps1` asks for it (input hidden) and stores it only on your PC, in a git-ignored file.
 
+**Optional keys** (setup asks for each once; press Enter to skip):
+
+| Key | Turns on | Where |
+|---|---|---|
+| Gemini API key | The J.A.R.V.I.S voice assistant: answers and the natural human voice | [aistudio.google.com](https://aistudio.google.com/apikey) (free tier; answers can take 10–20 s there, a paid key is faster) |
+| YouTube Data API key | JK Tube's search and rows inside the app (without it, search opens in your video app) | Google Cloud console → APIs → YouTube Data API v3 → Credentials |
+
+### Talking to J.A.R.V.I.S
+
+- Open **J.A.R.V.I.S** from your apps, or press the remote's mic button (Settings → "J.A.R.V.I.S on the remote's mic button": On).
+- **Hold the mic button the whole time you speak.** Voice remotes send sound only while the button is held.
+- The remote's voice reaches the TV over **Bluetooth**: if the TV asks you to press Home + Back, do it once to pair the remote. Buttons work without Bluetooth, voice doesn't.
+- On some TVs the firmware gives the remote's microphone only to Google's assistant; if J.A.R.V.I.S hears silence, type in its panel, or plug a USB microphone into the TV.
+- Instant commands (no waiting): "open Netflix", "Netflix open pannu", "play Jailer 2 trailer", "Anirudh songs podu", "news", "photos", "screensaver".
+
 ## 3. Prepare the PC
 
 Open **PowerShell** and install what's missing (one line each):

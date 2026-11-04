@@ -73,6 +73,42 @@ final class Net {
         throw last != null ? last : new IOException("request failed");
     }
 
+    /** POST a JSON body, retried like get(); for the assistant, which is never cached. */
+    static String postJson(String url, Map<String, String> headers, String json) throws IOException {
+        IOException last = null;
+        for (int attempt = 0; attempt < 3; attempt++) {
+            HttpURLConnection con = null;
+            try {
+                con = (HttpURLConnection) new URL(url).openConnection();
+                con.setConnectTimeout(12000);
+                con.setReadTimeout(30000);
+                con.setRequestMethod("POST");
+                con.setDoOutput(true);
+                con.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+                if (headers != null) for (Map.Entry<String, String> h : headers.entrySet()) con.setRequestProperty(h.getKey(), h.getValue());
+                con.getOutputStream().write(json.getBytes(StandardCharsets.UTF_8));
+                int code = con.getResponseCode();
+                InputStream in = code < 400 ? con.getInputStream() : con.getErrorStream();
+                String body = in == null ? "" : new String(readAll(in), StandardCharsets.UTF_8);
+                if (code >= 400 && code < 500) throw new IOException("HTTP " + code + ": " + body);
+                if (code != 200) throw new IOException("HTTP " + code);
+                return body;
+            } catch (IOException e) {
+                last = e;
+                if (e.getMessage() != null && e.getMessage().startsWith("HTTP 4")) throw e;
+                try {
+                    Thread.sleep(800L * (attempt + 1));
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw e;
+                }
+            } finally {
+                if (con != null) con.disconnect();
+            }
+        }
+        throw last != null ? last : new IOException("request failed");
+    }
+
     static byte[] readAll(InputStream in) throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         byte[] buf = new byte[16384];

@@ -112,6 +112,15 @@ public class HubActivity extends Activity {
         header.setPadding(Ui.dp(this, 48), Ui.dp(this, 22), Ui.dp(this, 48), Ui.dp(this, 26));
         header.setBackground(Ui.gradient(0xF00A0604, 0x000A0604, GradientDrawable.Orientation.TOP_BOTTOM));
         root.addView(header, new FrameLayout.LayoutParams(-1, -2, Gravity.TOP));
+        // browsing the rows: the brand and clock slide up out of the way, and come back at the top
+        int hideAfter = Ui.dp(this, 60);
+        sv.setOnScrollChangeListener((v, x, y, ox, oy) -> {
+            boolean hide = y > hideAfter;
+            if (hide == (header.getTag() == Boolean.TRUE)) return;
+            header.setTag(hide);
+            long d = prefs.motion() == Prefs.LOW ? 1 : 260;
+            header.animate().translationY(hide ? -header.getHeight() : 0).alpha(hide ? 0f : 1f).setDuration(d).start();
+        });
         rows.addView(new View(this), new LinearLayout.LayoutParams(1, Ui.dp(this, 128)));
 
         // welcome and the featured film
@@ -276,6 +285,12 @@ public class HubActivity extends Activity {
                 () -> startActivity(new Intent(this, SpecialActivity.class).putExtra("zone", "baasha")));
         addTile(special, Lang.t("jailer2"), Lang.t("jailer2_sub"), 0xFF0E2A30, 0xFFB4501A, tw, th,
                 () -> startActivity(new Intent(this, SpecialActivity.class).putExtra("zone", "jailer2")));
+        addTile(special, "J.A.R.V.I.S", "Speak · Ask · Play", 0xFF0A1430, 0xFF8A6A12, tw, th,
+                () -> startActivity(new Intent(this, JarvisActivity.class)));
+        addTile(special, "JK Tube", "Watch · Search · Speak", 0xFF3A0610, 0xFFB71C1C, tw, th,
+                () -> startActivity(new Intent(this, TubeActivity.class)));
+        addTile(special, "Photos", "Full screen gallery", 0xFF1A1208, 0xFF8A6A12, tw, th,
+                () -> startActivity(new Intent(this, PhotoActivity.class)));
         addTile(special, Lang.t("moments"), Lang.t("dialogues"), Ui.RED, Ui.PURPLE, tw, th,
                 () -> startActivity(new Intent(this, MomentsActivity.class)));
         addTile(special, Lang.t("wallpapers"), Lang.t("screensaver"), Ui.PURPLE, Ui.BLUE, tw, th,
@@ -366,6 +381,16 @@ public class HubActivity extends Activity {
             return;
         }
         startActivity(new Intent(this, MovieActivity.class).putExtra("id", f.id).putExtra("tamil", f.tamil).putExtra("stem", f.stem));
+    }
+
+    /** The remote's search / voice button anywhere on the hub calls J.A.R.V.I.S. */
+    @Override
+    public boolean onKeyDown(int keyCode, android.view.KeyEvent e) {
+        if (keyCode == android.view.KeyEvent.KEYCODE_SEARCH || keyCode == android.view.KeyEvent.KEYCODE_VOICE_ASSIST) {
+            startActivity(new Intent(this, JarvisActivity.class));
+            return true;
+        }
+        return super.onKeyDown(keyCode, e);
     }
 
     @Override

@@ -36,7 +36,16 @@ foreach ($line in Get-Content "$Backup\settings.txt") {
     $settings[$k] = $v.Trim()
 }
 
-# 1. Home back to what it was (the stock launcher is never disabled by THALAIVAR TV, so this always works)
+# 1. Anything disabled since the backup (the stock launcher, the setup wizard) comes back first, so Home has
+#    somewhere to go; then Home points where it pointed before.
+$disabledThen = if (Test-Path "$Backup\disabled.txt") { Get-Content "$Backup\disabled.txt" -Raw } else { '' }
+$disabledNow = if ($DryRun) { '' } else { & $Py -I "$Root\tools\tv.py" 'pm list packages -d' 2>$null | Out-String }
+foreach ($line in ($disabledNow -split "`n")) {
+    if ($line -match '^package:(\S+)') {
+        $p = $Matches[1]
+        if ($disabledThen -notmatch [regex]::Escape("package:$p")) { Run "pm enable --user 0 $p" | Out-Null }
+    }
+}
 if ($homeWas -match '/') { Run "cmd package set-home-activity --user 0 $homeWas" | Out-Null }
 # 2. Screensaver and accessibility helpers back to their recorded values
 foreach ($k in 'screensaver_components', 'enabled_accessibility_services') {

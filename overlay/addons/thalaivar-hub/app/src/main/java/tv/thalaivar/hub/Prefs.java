@@ -109,6 +109,80 @@ final class Prefs {
         return on;
     }
 
+    /** SmartTube's package names (stable, beta, and the older liskovsoft ids). */
+    static final String[] SMARTTUBE = {"org.smarttube.stable", "org.smarttube.beta",
+            "com.liskovsoft.smarttubetv", "com.liskovsoft.smarttubetv.beta"};
+
+    /**
+     * Who plays every video: "auto" (SmartTube when it is installed, else JK Tube's player), "jktube",
+     * "ask", or an app's package.
+     */
+    String player() {
+        return p.getString("player", "auto");
+    }
+
+    /** "auto" resolved to what is installed now. */
+    String resolvedPlayer() {
+        String pl = player();
+        if (!"auto".equals(pl)) return pl;
+        for (String pkg : SMARTTUBE) {
+            try {
+                c.getPackageManager().getApplicationInfo(pkg, 0);
+                return pkg;
+            } catch (Exception ignored) {
+                // not this one
+            }
+        }
+        return "jktube";
+    }
+
+    void setPlayer(String v) {
+        p.edit().putString("player", v).apply();
+    }
+
+    /** What the screensavers show: "all", "portraits", "stills" or "starred". */
+    String saverSource() {
+        return p.getString("saver_source", "all");
+    }
+
+    void setSaverSource(String v) {
+        p.edit().putString("saver_source", v).apply();
+    }
+
+    boolean saverClock() {
+        return p.getBoolean("saver_clock", true);
+    }
+
+    void setSaverClock(boolean on) {
+        p.edit().putBoolean("saver_clock", on).apply();
+    }
+
+    /** The remote's search / voice button opens J.A.R.V.I.S (needs the key service on in TV Settings). */
+    boolean jarvisButton() {
+        return p.getBoolean("jarvis_button", true);
+    }
+
+    void setJarvisButton(boolean on) {
+        p.edit().putBoolean("jarvis_button", on).apply();
+    }
+
+    /** Speech recognition language: "en-IN", "ta-IN", or "both" (English first, Tamil understood too). */
+    String micLanguage() {
+        return p.getString("mic_lang", "both");
+    }
+
+    void setMicLanguage(String v) {
+        p.edit().putString("mic_lang", v).apply();
+    }
+
+    boolean speakReplies() {
+        return p.getBoolean("speak", true);
+    }
+
+    void setSpeakReplies(boolean on) {
+        p.edit().putBoolean("speak", on).apply();
+    }
+
     String lastWall() {
         return p.getString("last_wall", "");
     }

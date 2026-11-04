@@ -68,8 +68,10 @@ class SaverView extends FrameLayout {
         clock = Ui.gold(c, "", 84);
         date = Ui.label(c, "", 22, Ui.TEXT);
         caption = Ui.label(c, "", 18, Ui.GOLD);
-        info.addView(clock);
-        info.addView(date);
+        if (prefs.saverClock()) {
+            info.addView(clock);
+            info.addView(date);
+        }
         info.addView(caption);
         addView(info, new LayoutParams(-1, -2, Gravity.BOTTOM | Gravity.START));
         TextView brand = Ui.label(c, "THALAIVAR TV", 20, 0xAAD4AF37);
@@ -107,10 +109,18 @@ class SaverView extends FrameLayout {
 
     /** Builds the playlist: {url or asset:, caption}. */
     private void collect() {
-        List<String[]> starred = new ArrayList<>(), films = new ArrayList<>();
+        List<String[]> starred = new ArrayList<>(), films = new ArrayList<>(), portraits = new ArrayList<>();
+        String source = baasha ? "stills" : prefs.saverSource();
         if (!baasha) for (String p : prefs.favWalls()) starred.add(new String[]{Tmdb.img(p, "w1280"), "★"});
         try {
+            if (source.equals("all") || source.equals("portraits")) {
+                JSONArray pr = Tmdb.portraits(getContext());
+                if (pr != null) for (int i = 0; i < pr.length(); i++) {
+                    portraits.add(new String[]{Tmdb.img(pr.optJSONObject(i).optString("file_path"), "h632"), "Superstar Rajinikanth"});
+                }
+            }
             for (Films.Film f : Films.resolve(getContext(), Films.curated())) {
+                if (!(source.equals("all") || source.equals("stills"))) break;
                 if (f.id < 0 || (baasha && !"baasha".equals(f.stem))) continue;
                 JSONArray bds = Tmdb.images(getContext(), f.id).optJSONArray("backdrops");
                 int max = baasha ? 30 : 4;
@@ -122,9 +132,11 @@ class SaverView extends FrameLayout {
             // offline: the bundled art below
         }
         Collections.shuffle(starred);
-        Collections.shuffle(films);
+        List<String[]> rest = new ArrayList<>(films);
+        rest.addAll(portraits);
+        Collections.shuffle(rest);
         pictures.addAll(starred);
-        pictures.addAll(films);
+        if (!"starred".equals(source) || starred.isEmpty()) pictures.addAll(rest);
         if (pictures.isEmpty()) {
             String[] art = baasha ? new String[]{"02-baasha-night"} : new String[]{"01-emperor-gold", "02-baasha-night", "08-midnight-star", "09-jailer2-steel"};
             for (String s : art) pictures.add(new String[]{"asset:art/" + s + ".jpg", "THALAIVAR TV"});

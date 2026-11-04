@@ -78,6 +78,18 @@ if (-not ((Test-Path $sec) -and (Select-String -Quiet -Path $sec -Pattern '^tmdb
     if ($tok) { Set-Content $sec "tmdb.token=$tok`nregion=IN" -Encoding ascii; Write-Host '  saved (git-ignored, stays on this computer)' }
     else { Write-Warning 'No token: the hub will show its own art and the news, but no films.' }
 }
+# Optional keys, each asked once and stored in the same git-ignored file
+function Ask-Key($name, $prompt, $envName) {
+    if ((Test-Path $sec) -and (Select-String -Quiet -Path $sec -Pattern "^$([regex]::Escape($name))=.+")) { return }
+    $v = [Environment]::GetEnvironmentVariable($envName)
+    if (-not $v) {
+        $s = Read-Host "$prompt (input hidden; Enter to skip)" -AsSecureString
+        $v = [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s))
+    }
+    if ($v) { Add-Content $sec "$name=$v" -Encoding ascii; Write-Host "  $name saved" }
+}
+Ask-Key 'gemini.key' 'Gemini API key for the J.A.R.V.I.S voice assistant (free: aistudio.google.com)' 'GEMINI_KEY'
+Ask-Key 'youtube.key' 'YouTube Data API key for JK Tube search inside the app (optional)' 'YOUTUBE_KEY'
 
 Write-Host '[4/5] Building'
 foreach ($p in "$Cyt\launcher", "$Cyt\addons\thalaivar-hub") {
