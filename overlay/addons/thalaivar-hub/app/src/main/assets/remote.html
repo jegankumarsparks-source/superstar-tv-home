@@ -330,9 +330,9 @@ $('power').onclick=function(){buzz(30);
 /* jarvis chat */
 var chat=$('chat'),q=$('q'),waitFor=0,waitEl=null,seenAt=0;
 function bubble(t,cls){var d=document.createElement('div');d.className='msg '+cls;d.textContent=t;chat.appendChild(d);chat.scrollTop=chat.scrollHeight;return d}
-function ask(t){t=(t||q.value).trim();if(!t)return;buzz(14);bubble(t,'me');q.value='';q.style.height='';t=t.replace(/^🎤\s*/,'');
+function ask(t,alt){t=(t||q.value).trim();if(!t)return;buzz(14);bubble(t,'me');q.value='';q.style.height='';t=t.replace(/^🎤\s*/,'');
   waitEl=bubble('…','jv wait');waitFor=seenAt||1;
-  call('/ask?q='+encodeURIComponent(t),function(j){if(!j.ok){waitEl.textContent='✗ Not sent';waitEl.classList.remove('wait');waitFor=0}else fast()})}
+  call('/ask?q='+encodeURIComponent(t)+(alt?'&alt='+encodeURIComponent(alt.slice(0,300)):''),function(j){if(!j.ok){waitEl.textContent='✗ Not sent';waitEl.classList.remove('wait');waitFor=0}else fast()})}
 $('send').onclick=function(){ask()};
 q.addEventListener('keydown',function(e){if(e.key=='Enter'&&!e.shiftKey){e.preventDefault();ask()}});
 q.addEventListener('input',function(){q.style.height='';q.style.height=Math.min(120,q.scrollHeight)+'px'});
@@ -357,7 +357,7 @@ $('fq').addEventListener('keydown',function(e){if(e.key=='Enter')$('fgo').click(
 
 /* voice messages: hold the mic, speak, release to send; slide left to cancel; a short tap = tap-to-talk */
 var SR=window.SpeechRecognition||window.webkitSpeechRecognition,fab=$('fab'),recbar=$('recbar'),rec=null,recOn=false,
-  finalTx='',interimTx='',recT0=0,recTimer=null,cancelled=false,downX=0,tapMode=false,lang='en-IN';
+  finalTx='',interimTx='',altTx=['',''],recT0=0,recTimer=null,cancelled=false,downX=0,tapMode=false,lang='en-IN';
 try{if(localStorage.getItem('lang')=='ta-IN')lang='ta-IN'}catch(e){}
 function showLang(){$('lang').textContent=lang=='ta-IN'?'தமிழ்':'EN'}showLang();
 $('lang').onclick=function(){lang=lang=='ta-IN'?'en-IN':'ta-IN';try{localStorage.setItem('lang',lang)}catch(e){};showLang();toast(lang=='ta-IN'?'🎤 தமிழ் / Tanglish':'🎤 English / Tanglish')};
@@ -368,9 +368,9 @@ function canTalk(){if(!window.isSecureContext){$('sheet').classList.add('show');
 function recStart(){finalTx='';interimTx='';cancelled=false;recOn=true;recT0=Date.now();buzz(25);
   fab.classList.add('rec');recbar.classList.add('show');recbar.classList.remove('cancel');$('rtx').textContent='Listening…';
   recTimer=setInterval(function(){var s=Math.floor((Date.now()-recT0)/1000);$('rtm').textContent=Math.floor(s/60)+':'+('0'+s%60).slice(-2);if(s>=60)recStop(false)},250);
-  rec=new SR();rec.lang=lang;rec.continuous=true;rec.interimResults=true;rec.maxAlternatives=1;
+  rec=new SR();rec.lang=lang;rec.continuous=true;rec.interimResults=true;rec.maxAlternatives=3;altTx=['',''];
   rec.onresult=function(e){interimTx='';for(var i=e.resultIndex;i<e.results.length;i++){var r=e.results[i];
-    if(r.isFinal)finalTx+=r[0].transcript+' ';else interimTx+=r[0].transcript}
+    if(r.isFinal){finalTx+=r[0].transcript+' ';for(var k=1;k<3;k++)altTx[k-1]+=(r[k]||r[0]).transcript+' '}else interimTx+=r[0].transcript}
     $('rtx').textContent=(finalTx+interimTx).trim()||'Listening…'};
   rec.onerror=function(e){if(e.error=='not-allowed'||e.error=='service-not-allowed'){toast('Allow the microphone for this page');recStop(true)}};
   rec.onend=function(){if(recOn){try{rec.start()}catch(x){}}else done()};
@@ -379,7 +379,8 @@ function recStop(cancel){if(!recOn)return;recOn=false;cancelled=cancel;clearInte
   try{rec.stop()}catch(x){done()}}
 function done(){var t=(finalTx+interimTx).trim();if(cancelled){toast('✕ Cancelled');return}
   if(!t){toast('Didn’t catch that — hold the mic and speak');return}
-  document.querySelector('nav button[data-tab=jarvis]').click();ask('🎤 '+t)}
+  var alts=altTx.map(function(a){return a.trim()}).filter(function(a){return a&&a.toLowerCase()!=t.toLowerCase()});
+  document.querySelector('nav button[data-tab=jarvis]').click();ask('🎤 '+t,alts.join(' | '))}
 fab.addEventListener('pointerdown',function(e){e.preventDefault();if(recOn&&tapMode){tapMode=false;recStop(false);return}
   if(!canTalk())return;downX=e.clientX;try{fab.setPointerCapture(e.pointerId)}catch(x){};recStart()});
 fab.addEventListener('pointermove',function(e){if(!recOn||tapMode)return;var away=downX-e.clientX>90;recbar.classList.toggle('cancel',away);$('rcx').textContent=away?'RELEASE TO CANCEL':'◀ SLIDE TO CANCEL'});

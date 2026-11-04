@@ -71,33 +71,46 @@ Kodak, Thomson, iFFALCON, Chromecast with Google TV, Google TV Streamer, NVIDIA 
 
 | Key | Turns on | Where |
 |---|---|---|
-| Gemini API key | The J.A.R.V.I.S voice assistant: answers and the natural human voice | [aistudio.google.com](https://aistudio.google.com/apikey) (free tier; answers can take 10–20 s there, a paid key is faster) |
-| YouTube Data API key | JK Tube's search and rows inside the app (without it, search opens in your video app) | Google Cloud console → APIs → YouTube Data API v3 → Credentials |
+| Gemini API key | J.A.R.V.I.S: answers in a human voice through the Gemini Live API, and full TV control | [aistudio.google.com](https://aistudio.google.com/apikey) (free tier; keep billing off and it stays free) |
+| YouTube Data API key | Playing any song or video by name, and JK Tube's search and rows | Google Cloud console → APIs → YouTube Data API v3 → Credentials |
 
 ### Talking to J.A.R.V.I.S
 
-- Open **J.A.R.V.I.S** from your apps, or press the remote's mic button (Settings → "J.A.R.V.I.S on the remote's mic button": On).
-- **Hold the mic button the whole time you speak.** Voice remotes send sound only while the button is held.
-- The remote's voice reaches the TV over **Bluetooth**: if the TV asks you to press Home + Back, do it once to pair the remote. Buttons work without Bluetooth, voice doesn't.
-- On some TVs the firmware gives the remote's microphone only to Google's assistant; if J.A.R.V.I.S hears silence, type in its panel, or plug a USB microphone into the TV.
-- Instant commands (no waiting): "open Netflix", "Netflix open pannu", "play Jailer 2 trailer", "Anirudh songs podu", "news", "photos", "screensaver".
-- Instant film answers from the TV's own film data: "who directed Baasha?", "Padayappa music director?", "when did Jailer 2 release?", "cast of Kabali".
-- Other questions go to Gemma and Gemini at the same time and the first answer wins (usually about 5 s on the free tier).
+You talk to J.A.R.V.I.S from the **phone remote** (next section): hold the gold 🎤 and speak, or type. Many TV
+remotes give their microphone only to Google's assistant, so the phone is the voice. You can also type in the
+J.A.R.V.I.S panel on the TV.
+
+- **Ask anything:** "who played the villain in Baasha?", "Padayappa music director?", "Jailer 2 box office?".
+  Film facts come from the TV's own film database; news and box office are searched on the web.
+- **Play anything:** "Anirudh songs podu", "play the Baasha auto song", "Jailer 2 trailer". J.A.R.V.I.S fixes
+  misheard Tamil names, and the TV plays only a video whose title matches; otherwise it shows the results and says so.
+- **Control the TV:** "volume 20", "mute", "pause", "next song", "press down two times", "go back", "go to my
+  movies", "open Netflix", "turn off the TV in 30 minutes", "cancel the sleep timer", "what's on the TV?".
+- The answer starts speaking on the TV within a few seconds and appears on your phone. The free Gemini tier has
+  daily limits per model; when the fastest Live model is used up for the day, J.A.R.V.I.S switches to the next one
+  by itself (a little slower), and the limits reset every day.
 
 ### The phone remote (scan once)
 
-The J.A.R.V.I.S panel shows a QR code. Scan it with a phone on the same Wi-Fi and you get the J.A.R.V.I.S
-remote: a talk box for your keyboard's microphone (English or Tamil), a D-pad with OK, Back, Home, volume and
-play/pause, the main apps, and quick commands. Use your browser's **Add to Home screen** and it opens like an app.
+The J.A.R.V.I.S panel shows a QR code. Scan it with a phone on the same Wi-Fi and the remote opens in your
+browser: **Remote** (power, D-pad or touchpad, volume bar, media keys), **Jarvis** (chat and voice messages),
+**Apps** (every app on the TV) and **Thalaivar** (every dashboard screen, play anything, find a film).
+
+**Turn on voice messages once:** tap the gold 🎤. Phone browsers allow the microphone only on a secure (https)
+page, so the remote offers the TV's secure address. Your browser will warn that it doesn't know the TV's
+certificate: that is expected, because the certificate is made inside your own TV, not by a public company. Tap
+**Advanced → Proceed**, allow the microphone, then use **Add to Home screen** on that page so it opens like an app.
 
 - It stays paired: the key in the QR is kept on the TV, and the remote is reachable whenever the TV is on (a
-  green **CONNECTED TO TV** light; it reconnects by itself after the TV sleeps).
+  green **CONNECTED** light; it reconnects by itself after the TV sleeps).
 - The QR carries a 128-bit key, so there is no PIN to type and nothing to guess. Commands are accepted only from
   the remote's own page, only at the TV's address, and only on your home network.
 - **Keep the TV's address fixed:** in your router, reserve the TV's IP address (DHCP reservation). If the
   router ever gives the TV a new address, scan the QR again.
-- Many TVs keep the remote's own microphone for Google's assistant; the phone remote is the reliable way to talk
-  to J.A.R.V.I.S on those.
+- Navigation buttons and J.A.R.V.I.S's TV control need **TV Settings → Accessibility → THALAIVAR TV helper: On**.
+  It never reads what is on the screen. If the TV ever turns it off (some do after an update), switch it on again.
+- **Standby** works from the phone; switching a TV fully **on** needs the TV's own remote, because a TV that is
+  fully off isn't on the network.
 
 ## 3. Prepare the PC
 
@@ -147,7 +160,7 @@ powershell -ExecutionPolicy Bypass -File cleanyourtv\tools\thalaivar\make-home.p
 It asks you to type **YES**, points Home at the THALAIVAR TV dashboard and never disables your TV's own launcher.
 On some Google TVs the setup wizard or the stock launcher holds on to Home; the script tells you, and nothing changes.
 
-**The way that works on every Google TV:** TV **Settings → Accessibility → J.A.R.V.I.S remote button → On**.
+**The way that works on every Google TV:** TV **Settings → Accessibility → THALAIVAR TV helper → On**.
 With it on, whenever the TV's own home screen comes up (Home button, power-on, leaving an app), the dashboard
 opens in its place. It reads only window changes and its few keys, never screen content. Switch it off any time in
 the hub's **Settings → THALAIVAR TV as the TV's home screen**. Reinstalling the app can turn the service off: switch it on again.

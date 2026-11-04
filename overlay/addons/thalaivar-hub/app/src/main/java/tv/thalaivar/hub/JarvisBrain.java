@@ -41,6 +41,14 @@ final class JarvisBrain {
     }
 
     static void ask(Context context, String text, Screen screen) {
+        ask(context, text, null, screen);
+    }
+
+    /**
+     * alternatives: other ways the phone's speech recognition heard a voice message ("Dharmam vellum" for
+     * "Dharmam vekkam"), so Gemini can pick the one that makes sense.
+     */
+    static void ask(Context context, String text, String alternatives, Screen screen) {
         Context c = context.getApplicationContext();
         if (text == null || text.trim().isEmpty()) return;
         if (!Gemini.hasKey()) {
@@ -53,6 +61,7 @@ final class JarvisBrain {
         QuickCommand quick = QuickCommand.parse(text);
         // "open X" is done locally only for an installed app; "go to Thalaivar cinema" and the like go to Live
         if (quick != null && "open_app".equals(quick.action) && findApp(c, quick.query) == null) quick = null;
+        if (quick != null && "play".equals(quick.action)) quick = null;
         if (quick != null) {
             QuickCommand cmd = quick;
             remember(cmd.say);
@@ -62,7 +71,12 @@ final class JarvisBrain {
             return;
         }
         if (screen != null) screen.thinking();
-        LiveJarvis.ask(c, text.trim(), LiveJarvis.appNames(c), aloud, new LiveJarvis.Listener() {
+        String asked = text.trim();
+        if (alternatives != null && !alternatives.trim().isEmpty()) {
+            asked += "\n(This was a voice message; speech recognition may have misheard Tamil words. It could also have been: "
+                    + alternatives.trim() + ". Use the meaning that makes sense.)";
+        }
+        LiveJarvis.ask(c, asked, LiveJarvis.appNames(c), aloud, new LiveJarvis.Listener() {
             @Override public void words(String soFar) {
                 remember(soFar);
                 if (screen != null) screen.words(soFar);
@@ -169,7 +183,7 @@ final class JarvisBrain {
     static String tool(Context c, String name, JSONObject a) {
         switch (name) {
             case "play_video":
-                return act(c, "play", a.optString("query")) ? "Playing it now in JK Tube." : "Nothing to play.";
+                return playBest(c, a.optString("query"));
             case "search_videos":
                 return TvControl.go(c, "tube", a.optString("query")) ? "Search results are on the screen." : "Couldn't open JK Tube.";
             case "open_app":
@@ -286,6 +300,76 @@ final class JarvisBrain {
             case "photos": return TvControl.go(c, "photos", null);
             case "screensaver": return TvControl.go(c, "saver", null);
             default: return false;
+        }
+    }
+
+    private static final java.util.Set<String> FILLER = new java.util.HashSet<>(java.util.Arrays.asList(
+            "song", "songs", "video", "videos", "full", "official", "trailer", "teaser", "tamil", "movie", "film", "lyric",
+            "lyrical", "the", "and", "podu", "play", "pannu", "from", "with", "audio", "jukebox", "hits", "best", "new"));
+
+    /** The words that identify what was asked for, without "song", "video", "official"… */
+    private static List<String> keyWords(String s) {
+        List<String> out = new ArrayList<>();
+        for (String w : s.toLowerCase(Locale.ROOT).split("[^\\p{L}\\p{N}]+")) {
+            if (w.length() >= 3 && !FILLER.contains(w)) out.add(w);
+        }
+        return out;
+    }
+
+    /** How many of the asked-for words a video's title contains. */
+    private static int score(List<String> want, String title) {
+        String t = title.toLowerCase(Locale.ROOT).replaceAll("[^\\p{L}\\p{N}]+", " ");
+        int n = 0;
+        for (String w : want) if (t.contains(w)) n++;
+        return n;
+    }
+
+    /**
+     * For Gemini's play_video: searches YouTube and plays only a video whose title holds most of the asked-for
+     * words (songs: a queue of the matching ones). No clear match: the results go on screen and Gemini is told so,
+     * instead of a random video playing. Runs on the Live reader thread, so the answer says what really plays.
+     */
+    static String playBest(Context c, String q) {
+        if (q == null || q.trim().isEmpty()) return "Nothing to play.";
+        if (!YtApi.hasKey()) {
+            act(c, "play", q);
+            return "Playing the best match in JK Tube.";
+        }
+        try {
+            boolean songs = q.toLowerCase(Locale.ROOT).matches(".*\\b(songs?|paattu|paadal|music|hits|bgm|album)\\b.*");
+            // a Tamil fan's TV: songs are searched in Tamil unless another language was named
+            String sq = songs && !q.toLowerCase(Locale.ROOT).matches(".*\\b(tamil|telugu|hindi|malayalam|kannada|english)\\b.*") ? q + " tamil" : q;
+            List<YtApi.Video> l = new ArrayList<>(songs ? YtApi.searchMusic(c, sq, 10) : YtApi.search(c, q, 8));
+            if (songs && l.isEmpty()) l = new ArrayList<>(YtApi.search(c, sq, 8));
+            List<String> want = keyWords(q);
+            // one or two key words: all of them; more: at least 60 % of them
+            int need = want.size() <= 2 ? want.size() : (int) Math.ceil(want.size() * 0.6);
+            YtApi.Video best = null;
+            int bestScore = -1;
+            // YouTube Shorts are clips, never the song or scene that was asked for
+            l.removeIf(v -> v.title.toLowerCase(Locale.ROOT).contains("#short"));
+            for (YtApi.Video v : l) {
+                int s = score(want, v.title);
+                if (s > bestScore) {
+                    bestScore = s;
+                    best = v;
+                }
+            }
+            if (best == null || bestScore < need) {
+                MAIN.post(() -> TvControl.go(c, "tube", q));
+                return "No video clearly matches \"" + q + "\". The search results are on the TV screen: tell the owner and "
+                        + "ask which one, or try a corrected title.";
+            }
+            java.util.ArrayList<String> queue = new java.util.ArrayList<>();
+            queue.add(best.id);
+            // a playlist of the other matching songs after it; other videos only as backups if this one can't play
+            for (YtApi.Video v : l) if (v != best && score(want, v.title) >= need) queue.add(v.id);
+            String title = best.title;
+            MAIN.post(() -> TubeActivity.playQueue(c, queue, title));
+            return "Now playing: " + title + ".";
+        } catch (Exception e) {
+            MAIN.post(() -> TvControl.go(c, "tube", q));
+            return "YouTube search failed; the JK Tube search is on screen.";
         }
     }
 

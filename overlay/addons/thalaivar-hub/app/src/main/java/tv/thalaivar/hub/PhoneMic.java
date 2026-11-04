@@ -233,7 +233,9 @@ final class PhoneMic {
                 // answered in the background: J.A.R.V.I.S speaks and acts without covering what is on screen
                 if (ok) {
                     String asked = q.trim();
-                    new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> JarvisBrain.ask(c, asked, null));
+                    String alt = u.getQueryParameter("alt");
+                    String alts = alt == null || alt.length() > 300 ? null : alt;
+                    new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> JarvisBrain.ask(c, asked, alts, null));
                 }
                 break;
             }

@@ -19,5 +19,5 @@ $now = (& $Py -I "$Root\tools\tv.py" $q | Select-Object -Last 1).Trim()
 if ($now -like 'tv.thalaivar.hub/*') {
     Write-Host "Home is now THALAIVAR TV ($now). Press Home on the remote to check."
 } else {
-    Write-Warning "Home resolves to '$now', not THALAIVAR TV. On some Google TVs the setup wizard or another app's Home-button helper takes Home; nothing was disabled, so the TV works as before. Instead, turn on ""J.A.R.V.I.S remote button"" in TV Settings > Accessibility: with it on, the Home button and power-on open the dashboard anyway."
+    Write-Warning "Home resolves to '$now', not THALAIVAR TV. On some Google TVs the setup wizard or another app's Home-button helper takes Home; nothing was disabled, so the TV works as before. Instead, turn on ""THALAIVAR TV helper"" in TV Settings > Accessibility: with it on, the Home button and power-on open the dashboard anyway."
 }
