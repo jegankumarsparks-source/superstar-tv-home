@@ -111,6 +111,26 @@ nav button{border:0;background:transparent;display:flex;flex-direction:column;al
 nav button small{font-size:10px;letter-spacing:.14em;font-weight:700}
 nav button.on{color:var(--g)}
 nav button.on small{text-shadow:0 0 10px #ffd35c88}
+/* voice messages */
+.fab{position:fixed;right:16px;bottom:96px;z-index:7;width:66px;height:66px;border-radius:50%;border:0;font-size:28px;touch-action:none;
+background:radial-gradient(circle at 35% 30%,#fff3c4,var(--g) 45%,var(--g2));color:#1a1206;box-shadow:0 8px 26px #ffb02077,0 0 0 4px #06080f}
+.fab.rec{background:radial-gradient(circle at 35% 30%,#ffb3b3,#ff4d4d 50%,#b31212);color:#fff;transform:scale(1.18);box-shadow:0 0 0 10px #ff4d4d33,0 0 40px #ff4d4d88}
+.lang{position:fixed;right:22px;bottom:168px;z-index:7;border:1px solid var(--line);background:#06080fdd;color:var(--g);border-radius:999px;padding:5px 10px;font-size:11px;font-weight:800;letter-spacing:.1em}
+.recbar{position:fixed;left:12px;right:92px;bottom:98px;z-index:7;display:none;align-items:center;gap:10px;padding:12px 14px;border-radius:20px;
+background:#160b0bf0;border:1px solid #ff4d4d66;backdrop-filter:blur(10px)}
+.recbar.show{display:flex}
+.recbar .rd{width:10px;height:10px;border-radius:50%;background:#ff4d4d;animation:blink 1s infinite}
+.recbar .tm{font-variant-numeric:tabular-nums;font-weight:800;font-size:14px}
+.recbar .tx{flex:1;min-width:0;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;direction:rtl;text-align:left}
+.recbar .cx{font-size:11px;color:#ffb3b3;letter-spacing:.08em;white-space:nowrap}
+.recbar.cancel{border-color:#888;opacity:.7}
+.sheet{position:fixed;inset:0;z-index:20;display:none;align-items:flex-end;background:#000a}
+.sheet.show{display:flex}
+.sheet div{width:100%;background:#0d1020;border-top:1px solid var(--line);border-radius:22px 22px 0 0;padding:20px 18px 28px;font-size:14px;line-height:1.5}
+.sheet b{color:var(--g);font-size:16px}
+.sheet button{width:100%;margin-top:12px;border:0;border-radius:14px;padding:14px;font-weight:800;font-size:15px}
+.sheet .go{background:var(--g);color:#1a1206}.sheet .no{background:#ffffff14;color:var(--txt)}
+@keyframes blink{50%{opacity:.2}}
 .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(20px);opacity:0;background:#000000dd;border:1px solid var(--line);
 padding:10px 16px;border-radius:14px;font-size:13px;transition:.25s;z-index:9;max-width:88vw;text-align:center;pointer-events:none}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -182,9 +202,9 @@ body.away main,body.away .now{opacity:.5}
 <section class="tab" id="t-jarvis">
   <div class="card">
     <h2>J.A.R.V.I.S <span>ENGLISH · தமிழ் · TANGLISH</span></h2>
-    <div class="chat" id="chat"><div class="msg jv">Vanakkam Thalaiva! Type or tap the 🎤 on your keyboard and speak. “Anirudh songs podu”, “open Netflix”, “who directed Baasha?”</div></div>
+    <div class="chat" id="chat"><div class="msg jv">Vanakkam Thalaiva! Hold the gold 🎤 and speak, or type. “Anirudh songs podu”, “open Netflix”, “who directed Baasha?”</div></div>
     <div class="ask"><textarea id="q" placeholder="Ask or command…" rows="1"></textarea><button id="send" aria-label="Send">➤</button></div>
-    <div class="hint">🎤 Voice: tap the box, then the microphone on your phone's keyboard</div>
+    <div class="hint">🎤 Hold the gold mic and speak · release to send · slide left to cancel</div>
   </div>
   <div class="card"><h2>QUICK</h2><div class="chips" id="chips">
     <button>Anirudh songs podu</button><button>play Jailer 2 trailer</button><button>open Netflix</button><button>open Hotstar</button>
@@ -234,6 +254,14 @@ body.away main,body.away .now{opacity:.5}
   <button data-tab="apps">▦<small>APPS</small></button>
   <button data-tab="thalaivar">👑<small>THALAIVAR</small></button>
 </nav>
+<button class="lang" id="lang">EN</button>
+<button class="fab" id="fab" aria-label="Hold to talk to J.A.R.V.I.S">🎤</button>
+<div class="recbar" id="recbar"><span class="rd"></span><span class="tm" id="rtm">0:00</span><span class="tx" id="rtx">Listening…</span><span class="cx" id="rcx">◀ SLIDE TO CANCEL</span></div>
+<div class="sheet" id="sheet"><div><b>🎤 Voice messages — one-time setup</b><br>
+Phone browsers allow the microphone only on a secure page. The TV has its own secure address. Your browser will say it
+“doesn't know” the TV's certificate (it is made inside your TV, not by a public company): tap <b>Advanced → Proceed</b> once.
+Then add that page to your home screen.
+<button class="go" id="sgo">Open the secure remote</button><button class="no" id="sno">Not now</button></div></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -298,7 +326,7 @@ $('power').onclick=function(){buzz(30);
 /* jarvis chat */
 var chat=$('chat'),q=$('q'),waitFor=0,waitEl=null,seenAt=0;
 function bubble(t,cls){var d=document.createElement('div');d.className='msg '+cls;d.textContent=t;chat.appendChild(d);chat.scrollTop=chat.scrollHeight;return d}
-function ask(t){t=(t||q.value).trim();if(!t)return;buzz(14);bubble(t,'me');q.value='';q.style.height='';
+function ask(t){t=(t||q.value).trim();if(!t)return;buzz(14);bubble(t,'me');q.value='';q.style.height='';t=t.replace(/^🎤\s*/,'');
   waitEl=bubble('…','jv wait');waitFor=seenAt||1;
   call('/ask?q='+encodeURIComponent(t),function(j){if(!j.ok){waitEl.textContent='✗ Not sent';waitEl.classList.remove('wait');waitFor=0}else fast()})}
 $('send').onclick=function(){ask()};
@@ -322,6 +350,40 @@ $('pgo').onclick=function(){var t=$('pq').value.trim();if(t){ask('play '+t);$('p
 $('pq').addEventListener('keydown',function(e){if(e.key=='Enter')$('pgo').click()});
 $('fgo').onclick=function(){var t=$('fq').value.trim();go('films',t)};
 $('fq').addEventListener('keydown',function(e){if(e.key=='Enter')$('fgo').click()});
+
+/* voice messages: hold the mic, speak, release to send; slide left to cancel; a short tap = tap-to-talk */
+var SR=window.SpeechRecognition||window.webkitSpeechRecognition,fab=$('fab'),recbar=$('recbar'),rec=null,recOn=false,
+  finalTx='',interimTx='',recT0=0,recTimer=null,cancelled=false,downX=0,tapMode=false,lang='en-IN';
+try{if(localStorage.getItem('lang')=='ta-IN')lang='ta-IN'}catch(e){}
+function showLang(){$('lang').textContent=lang=='ta-IN'?'தமிழ்':'EN'}showLang();
+$('lang').onclick=function(){lang=lang=='ta-IN'?'en-IN':'ta-IN';try{localStorage.setItem('lang',lang)}catch(e){};showLang();toast(lang=='ta-IN'?'🎤 தமிழ் / Tanglish':'🎤 English / Tanglish')};
+function secureUrl(){return 'https://'+location.hostname+':8788'+location.pathname}
+$('sgo').onclick=function(){location.href=secureUrl()};$('sno').onclick=function(){$('sheet').classList.remove('show')};
+function canTalk(){if(!window.isSecureContext){$('sheet').classList.add('show');return false}
+  if(!SR){toast('This browser has no voice typing — use Chrome, or the keyboard 🎤');return false}return true}
+function recStart(){finalTx='';interimTx='';cancelled=false;recOn=true;recT0=Date.now();buzz(25);
+  fab.classList.add('rec');recbar.classList.add('show');recbar.classList.remove('cancel');$('rtx').textContent='Listening…';
+  recTimer=setInterval(function(){var s=Math.floor((Date.now()-recT0)/1000);$('rtm').textContent=Math.floor(s/60)+':'+('0'+s%60).slice(-2);if(s>=60)recStop(false)},250);
+  rec=new SR();rec.lang=lang;rec.continuous=true;rec.interimResults=true;rec.maxAlternatives=1;
+  rec.onresult=function(e){interimTx='';for(var i=e.resultIndex;i<e.results.length;i++){var r=e.results[i];
+    if(r.isFinal)finalTx+=r[0].transcript+' ';else interimTx+=r[0].transcript}
+    $('rtx').textContent=(finalTx+interimTx).trim()||'Listening…'};
+  rec.onerror=function(e){if(e.error=='not-allowed'||e.error=='service-not-allowed'){toast('Allow the microphone for this page');recStop(true)}};
+  rec.onend=function(){if(recOn){try{rec.start()}catch(x){}}else done()};
+  try{rec.start()}catch(x){toast('The microphone is busy');recStop(true)}}
+function recStop(cancel){if(!recOn)return;recOn=false;cancelled=cancel;clearInterval(recTimer);fab.classList.remove('rec');recbar.classList.remove('show');
+  try{rec.stop()}catch(x){done()}}
+function done(){var t=(finalTx+interimTx).trim();if(cancelled){toast('✕ Cancelled');return}
+  if(!t){toast('Didn’t catch that — hold the mic and speak');return}
+  document.querySelector('nav button[data-tab=jarvis]').click();ask('🎤 '+t)}
+fab.addEventListener('pointerdown',function(e){e.preventDefault();if(recOn&&tapMode){tapMode=false;recStop(false);return}
+  if(!canTalk())return;downX=e.clientX;try{fab.setPointerCapture(e.pointerId)}catch(x){};recStart()});
+fab.addEventListener('pointermove',function(e){if(!recOn||tapMode)return;var away=downX-e.clientX>90;recbar.classList.toggle('cancel',away);$('rcx').textContent=away?'RELEASE TO CANCEL':'◀ SLIDE TO CANCEL'});
+fab.addEventListener('pointerup',function(e){if(!recOn)return;
+  if(Date.now()-recT0<450&&!tapMode){tapMode=true;$('rcx').textContent='TAP 🎤 TO SEND';return}
+  if(tapMode)return;recStop(downX-e.clientX>90)});
+fab.addEventListener('pointercancel',function(){if(recOn&&!tapMode)recStop(true)});
+fab.addEventListener('contextmenu',function(e){e.preventDefault()});
 
 /* computer keyboard, for a laptop browser */
 document.addEventListener('keydown',function(e){if(/INPUT|TEXTAREA/.test(e.target.tagName))return;

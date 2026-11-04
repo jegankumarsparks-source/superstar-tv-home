@@ -28,7 +28,13 @@ import java.util.Locale;
  */
 final class PhoneMic {
     static final int PORT = 8787;
-    private static ServerSocket server;
+    /**
+     * The same remote over https, so the phone's browser lets the page use its microphone (voice messages).
+     * The certificate is made on the TV itself, inside Android's keystore; the browser warns once that it doesn't
+     * know it, because no public authority signs a TV's home-network address.
+     */
+    static final int TLS_PORT = 8788;
+    private static ServerSocket server, tlsServer;
 
     /** The pairing key, made once and kept; "new pairing" in Settings replaces it. */
     static String key(Context c) {
@@ -71,25 +77,76 @@ final class PhoneMic {
 
     /** Started by the helper service and by the dashboard, so the phone can connect whenever the TV is on. */
     static synchronized void start(Context context) {
-        if (server != null && !server.isClosed()) return;
         Context c = context.getApplicationContext();
-        try {
-            server = new ServerSocket(PORT);
-        } catch (Exception e) {
-            return;
+        if (server == null || server.isClosed()) {
+            try {
+                server = new ServerSocket(PORT);
+                loop(c, server, "jarvis-remote");
+            } catch (Exception e) {
+                // the port is taken: the remote stays off until the next start
+            }
         }
+        if (tlsServer == null || tlsServer.isClosed()) {
+            try {
+                tlsServer = tlsSocket();
+                loop(c, tlsServer, "jarvis-remote-tls");
+            } catch (Exception e) {
+                android.util.Log.w("PhoneMic", "https remote off: " + e);
+            }
+        }
+    }
+
+    private static void loop(Context c, ServerSocket ss, String name) {
         Thread t = new Thread(() -> {
-            while (server != null && !server.isClosed()) {
-                try (Socket s = server.accept()) {
-                    s.setSoTimeout(5000);
-                    serve(c, s);
+            while (!ss.isClosed()) {
+                try {
+                    Socket s = ss.accept();
+                    // each request on its own thread, so a slow TLS handshake never holds up the next one
+                    Thread one = new Thread(() -> {
+                        try (Socket mine = s) {
+                            mine.setSoTimeout(5000);
+                            serve(c, mine);
+                        } catch (Exception ignored) {
+                            // one bad request never stops the server
+                        }
+                    }, name + "-req");
+                    one.setDaemon(true);
+                    one.start();
                 } catch (Exception ignored) {
-                    // one bad request never stops the server
+                    // keep accepting
                 }
             }
-        }, "jarvis-remote");
+        }, name);
         t.setDaemon(true);
         t.start();
+    }
+
+    /** An https server socket whose key never leaves the TV's Android Keystore (an EC P-256 key, self-signed). */
+    private static ServerSocket tlsSocket() throws Exception {
+        String alias = "thalaivar-remote-tls";
+        java.security.KeyStore ks = java.security.KeyStore.getInstance("AndroidKeyStore");
+        ks.load(null);
+        if (!ks.containsAlias(alias)) {
+            long now = System.currentTimeMillis();
+            java.security.KeyPairGenerator g = java.security.KeyPairGenerator.getInstance(
+                    android.security.keystore.KeyProperties.KEY_ALGORITHM_EC, "AndroidKeyStore");
+            g.initialize(new android.security.keystore.KeyGenParameterSpec.Builder(alias,
+                    android.security.keystore.KeyProperties.PURPOSE_SIGN)
+                    .setAlgorithmParameterSpec(new java.security.spec.ECGenParameterSpec("secp256r1"))
+                    .setDigests(android.security.keystore.KeyProperties.DIGEST_NONE, android.security.keystore.KeyProperties.DIGEST_SHA256,
+                            android.security.keystore.KeyProperties.DIGEST_SHA384, android.security.keystore.KeyProperties.DIGEST_SHA512)
+                    .setCertificateSubject(new javax.security.auth.x500.X500Principal("CN=THALAIVAR TV remote"))
+                    .setCertificateSerialNumber(java.math.BigInteger.valueOf(now))
+                    .setCertificateNotBefore(new java.util.Date(now - 86_400_000L))
+                    .setCertificateNotAfter(new java.util.Date(now + 20L * 365 * 86_400_000L))
+                    .build());
+            g.generateKeyPair();
+        }
+        javax.net.ssl.KeyManagerFactory kmf = javax.net.ssl.KeyManagerFactory.getInstance(javax.net.ssl.KeyManagerFactory.getDefaultAlgorithm());
+        kmf.init(ks, null);
+        javax.net.ssl.SSLContext ctx = javax.net.ssl.SSLContext.getInstance("TLS");
+        ctx.init(kmf.getKeyManagers(), null, null);
+        return ctx.getServerSocketFactory().createServerSocket(TLS_PORT);
     }
 
     private static boolean keyMatches(Context c, String given) {
@@ -97,12 +154,12 @@ final class PhoneMic {
     }
 
     private static void serve(Context c, Socket s) throws Exception {
-        BufferedReader in = new BufferedReader(new InputStreamReader(s.getInputStream(), StandardCharsets.UTF_8));
-        String line = in.readLine();
+        java.io.InputStream raw = s.getInputStream();
+        String line = readLine(raw);
         if (line == null || line.length() > 2048) return;
         String host = "", marker = "";
         for (int i = 0; i < 40; i++) {
-            String h = in.readLine();
+            String h = readLine(raw);
             if (h == null || h.isEmpty()) break;
             int colon = h.indexOf(':');
             if (colon <= 0) continue;
@@ -111,7 +168,8 @@ final class PhoneMic {
             if ("x-jarvis".equals(name)) marker = value;
         }
         String me = address(c);
-        if (me == null || !("http://" + host).equals(me)) {
+        String ip = me == null ? null : me.substring("http://".length(), me.lastIndexOf(':'));
+        if (ip == null || !(host.equals(ip + ":" + PORT) || host.equals(ip + ":" + TLS_PORT))) {
             // reached through another name (DNS rebinding) or an unexpected address
             reply(s, "421 Misdirected Request", "text/plain", "scan the QR code on the TV");
             return;
@@ -186,6 +244,19 @@ final class PhoneMic {
                 ok = false;
         }
         reply(s, ok ? "200 OK" : "400 Bad Request", "application/json", "{\"ok\":" + ok + "}");
+    }
+
+    /** One header line (ASCII), without the line end; null at the end of the stream. */
+    private static String readLine(java.io.InputStream in) throws java.io.IOException {
+        StringBuilder b = new StringBuilder();
+        while (true) {
+            int ch = in.read();
+            if (ch < 0) return b.length() == 0 ? null : b.toString();
+            if (ch == '\n') break;
+            if (ch != '\r') b.append((char) ch);
+            if (b.length() > 4096) break;
+        }
+        return b.toString();
     }
 
     private static void reply(Socket s, String status, String type, String body) throws Exception {

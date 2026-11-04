@@ -337,13 +337,24 @@ final class LiveJarvis {
     // ── a minimal WebSocket client (RFC 6455), so the app needs no extra library ──────────────
 
     private static void open() throws IOException {
-        socket = javax.net.ssl.SSLSocketFactory.getDefault().createSocket(HOST, 443);
+        javax.net.ssl.SSLSocket tls = (javax.net.ssl.SSLSocket) javax.net.ssl.SSLSocketFactory.getDefault().createSocket(HOST, 443);
+        // the certificate must be Google's own for this host name, not just any valid certificate
+        javax.net.ssl.SSLParameters params = tls.getSSLParameters();
+        params.setEndpointIdentificationAlgorithm("HTTPS");
+        tls.setSSLParameters(params);
+        tls.startHandshake();
+        if (!javax.net.ssl.HttpsURLConnection.getDefaultHostnameVerifier().verify(HOST, tls.getSession())) {
+            tls.close();
+            throw new javax.net.ssl.SSLPeerUnverifiedException("not " + HOST);
+        }
+        socket = tls;
         socket.setSoTimeout(0);
         out = socket.getOutputStream();
         byte[] nonce = new byte[16];
         new SecureRandom().nextBytes(nonce);
-        String req = "GET /ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key="
-                + BuildConfig.GEMINI_KEY + " HTTP/1.1\r\nHost: " + HOST + "\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
+        // the key goes in a header, never in the address
+        String req = "GET /ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent HTTP/1.1\r\nHost: " + HOST
+                + "\r\nx-goog-api-key: " + BuildConfig.GEMINI_KEY + "\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
                 + "Sec-WebSocket-Key: " + Base64.encodeToString(nonce, Base64.NO_WRAP) + "\r\nSec-WebSocket-Version: 13\r\n\r\n";
         out.write(req.getBytes(StandardCharsets.US_ASCII));
         out.flush();
