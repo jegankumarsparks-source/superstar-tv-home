@@ -59,6 +59,30 @@ final class YtApi {
         return l;
     }
 
+    /**
+     * Without a YouTube key: when the request names one of his films ("Baasha trailer", "play Jailer 2"),
+     * that film's official trailer from TMDB, ready to play. Blocking; call off the main thread.
+     */
+    static Video filmTrailer(Context c, String request) {
+        try {
+            String want = request.toLowerCase(java.util.Locale.ROOT);
+            Films.Film hit = null;
+            for (Films.Film f : Films.resolve(c, Films.curated())) {
+                String t = f.title.toLowerCase(java.util.Locale.ROOT);
+                if (f.id > 0 && (want.contains(t) || want.contains(f.tamil)) && (hit == null || t.length() > hit.title.length())) hit = f;
+            }
+            if (hit == null) return null;
+            String key = MovieActivity.bestVideo(Tmdb.movie(c, hit.id), "Trailer");
+            if (key == null) return null;
+            Video v = new Video();
+            v.id = key;
+            v.title = hit.title + " · Official trailer";
+            return v;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     /** Official trailers and clips TMDB lists for the lead films: a keyless JK Tube row. */
     static List<Video> thalaivarVideos(Context c) {
         List<Video> l = new ArrayList<>();

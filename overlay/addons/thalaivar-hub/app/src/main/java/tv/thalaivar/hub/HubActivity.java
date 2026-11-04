@@ -50,6 +50,8 @@ public class HubActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        // back from a film or a video: continue watching, favourites and recently viewed are up to date
+        if (cinemaAnchor != null) refreshPersonal();
         tick.run();
         main.postDelayed(rotate, 12000);
     }
@@ -92,15 +94,17 @@ public class HubActivity extends Activity {
         sv.addView(rows);
         root.addView(sv, Ui.match());
 
-        // header: brand, tagline, Chennai clock and date
+        // header: brand, tagline, Chennai clock and date, then the dashboard's navigation
         LinearLayout header = new LinearLayout(this);
-        header.setOrientation(LinearLayout.HORIZONTAL);
-        header.setPadding(Ui.dp(this, 48), Ui.dp(this, 28), Ui.dp(this, 48), 0);
+        header.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout top = new LinearLayout(this);
+        top.setOrientation(LinearLayout.HORIZONTAL);
+        header.addView(top);
         LinearLayout brand = new LinearLayout(this);
         brand.setOrientation(LinearLayout.VERTICAL);
         brand.addView(Ui.gold(this, "THALAIVAR TV", 34));
         brand.addView(Ui.label(this, Lang.t("brand_tag"), 15, Ui.DIM));
-        header.addView(brand, new LinearLayout.LayoutParams(0, -2, 1));
+        top.addView(brand, new LinearLayout.LayoutParams(0, -2, 1));
         LinearLayout time = new LinearLayout(this);
         time.setOrientation(LinearLayout.VERTICAL);
         time.setGravity(Gravity.END);
@@ -108,21 +112,30 @@ public class HubActivity extends Activity {
         date = Ui.label(this, "", 16, Ui.TEXT);
         time.addView(clock);
         time.addView(date);
-        header.addView(time);
+        top.addView(time);
+        nav = Ui.buttonRow(this, header);
+        addNav("HOME", this::goHome);
+        addNav("THALAIVAR CINEMA", () -> jumpTo(cinemaAnchor));
+        addNav("MY MOVIES", () -> jumpTo(myAnchor != null ? myAnchor : cinemaAnchor));
+        addNav("APPS", () -> startActivity(new Intent(this, AppsActivity.class)));
+        addNav("YOUTUBE", () -> startActivity(new Intent(this, TubeActivity.class)));
+        addNav("ENTERTAINMENT", () -> jumpTo(entAnchor));
+        addNav("JARVIS", () -> startActivity(new Intent(this, JarvisActivity.class)));
+        addNav("SETTINGS", () -> startActivity(new Intent(this, SettingsActivity.class)));
+        addNav("🔍", () -> startActivity(new Intent(this, SearchActivity.class)));
         // the brand and the Chennai clock stay on screen while the rows scroll under them
-        header.setPadding(Ui.dp(this, 48), Ui.dp(this, 22), Ui.dp(this, 48), Ui.dp(this, 26));
-        header.setBackground(Ui.gradient(0xF00A0604, 0x000A0604, GradientDrawable.Orientation.TOP_BOTTOM));
+        header.setPadding(Ui.dp(this, 48), Ui.dp(this, 18), Ui.dp(this, 48), Ui.dp(this, 14));
+        header.setBackground(Ui.gradient(0xF50A0604, 0x000A0604, GradientDrawable.Orientation.TOP_BOTTOM));
         root.addView(header, new FrameLayout.LayoutParams(-1, -2, Gravity.TOP));
-        // browsing the rows: the brand and clock slide up out of the way, and come back at the top
+        this.header = header;
+        this.sv = sv;
+        // browsing the rows: the header slides up out of the way; it comes back at the top or when the menu is focused
         int hideAfter = Ui.dp(this, 60);
-        sv.setOnScrollChangeListener((v, x, y, ox, oy) -> {
-            boolean hide = y > hideAfter;
-            if (hide == (header.getTag() == Boolean.TRUE)) return;
-            header.setTag(hide);
-            long d = prefs.motion() == Prefs.LOW ? 1 : 260;
-            header.animate().translationY(hide ? -header.getHeight() : 0).alpha(hide ? 0f : 1f).setDuration(d).start();
-        });
-        rows.addView(new View(this), new LinearLayout.LayoutParams(1, Ui.dp(this, 128)));
+        sv.setOnScrollChangeListener((v, x, y, ox, oy) -> showHeader(y <= hideAfter));
+        rows.addView(new View(this), new LinearLayout.LayoutParams(1, Ui.dp(this, 150)));
+        // personal rows (continue watching, favourites, recently viewed) go here, refreshed on every return
+        personal = new LinearLayout(this);
+        personal.setOrientation(LinearLayout.VERTICAL);
 
         // welcome and the featured film
         LinearLayout hero = new LinearLayout(this);
@@ -142,7 +155,80 @@ public class HubActivity extends Activity {
         hero.addView(featSub);
         rows.addView(hero);
         rows.addView(new View(this), new LinearLayout.LayoutParams(1, Ui.dp(this, 40)));
+        rows.addView(personal);
+
+        // J.A.R.V.I.S, small and out of the way in the corner: OK on it opens the compact panel
+        FaceView orb = new FaceView(this);
+        orb.setFocusable(true);
+        orb.setOnClickListener(v -> startActivity(new Intent(this, JarvisActivity.class)));
+        orb.setOnFocusChangeListener((v, has) -> v.animate().scaleX(has ? 1.25f : 1f).scaleY(has ? 1.25f : 1f).setDuration(160).start());
+        FrameLayout.LayoutParams olp = new FrameLayout.LayoutParams(Ui.dp(this, 84), Ui.dp(this, 84), Gravity.BOTTOM | Gravity.END);
+        olp.setMargins(0, 0, Ui.dp(this, 22), Ui.dp(this, 18));
+        root.addView(orb, olp);
         setContentView(root);
+    }
+
+    private LinearLayout nav, personal, header;
+    private ScrollView sv;
+    private View cinemaAnchor, myAnchor, entAnchor;
+    private List<Films.Film> everything = new ArrayList<>();
+    private View firstCard;
+
+    private void addNav(String label, Runnable action) {
+        TextView b = Ui.button(this, label, v -> action.run());
+        // compact pills: all nine fit across the screen, none scrolled off the edge
+        b.setTextSize(14);
+        b.setPadding(Ui.dp(this, 15), Ui.dp(this, 6), Ui.dp(this, 15), Ui.dp(this, 6));
+        ((LinearLayout.LayoutParams) b.getLayoutParams()).rightMargin = Ui.dp(this, 9);
+        b.setOnFocusChangeListener(chainNav(b.getOnFocusChangeListener()));
+        nav.addView(b);
+    }
+
+    /** The menu focused: the header comes back into view. */
+    private View.OnFocusChangeListener chainNav(View.OnFocusChangeListener base) {
+        return (v, has) -> {
+            base.onFocusChange(v, has);
+            if (has) showHeader(true);
+        };
+    }
+
+    private void showHeader(boolean show) {
+        if (header == null || show == (header.getTag() != Boolean.TRUE)) return;
+        header.setTag(!show);
+        long d = prefs.motion() == Prefs.LOW ? 1 : 260;
+        header.animate().translationY(show ? 0 : -header.getHeight()).alpha(show ? 1f : 0f).setDuration(d).start();
+    }
+
+    private void goHome() {
+        sv.smoothScrollTo(0, 0);
+        showHeader(true);
+        if (firstCard != null) firstCard.requestFocus();
+    }
+
+    /** Scrolls a section's heading under the header and focuses its first card. */
+    private void jumpTo(View anchor) {
+        if (anchor == null || !(anchor.getParent() instanceof LinearLayout)) return;
+        LinearLayout parent = (LinearLayout) anchor.getParent();
+        int top = anchor.getTop() + (parent == personal ? personal.getTop() : 0);
+        sv.smoothScrollTo(0, Math.max(0, top - Ui.dp(this, 20)));
+        int i = parent.indexOfChild(anchor);
+        View strip = i >= 0 && i + 1 < parent.getChildCount() ? parent.getChildAt(i + 1) : null;
+        if (strip instanceof android.widget.HorizontalScrollView) {
+            View s = ((android.widget.HorizontalScrollView) strip).getChildAt(0);
+            if (s instanceof LinearLayout && ((LinearLayout) s).getChildCount() > 0) ((LinearLayout) s).getChildAt(0).requestFocus();
+        }
+    }
+
+    /** A row added to the page, and its heading kept as a place the menu can jump to. */
+    private LinearLayout section(LinearLayout parent, String title) {
+        LinearLayout strip = Ui.row(this, parent, title);
+        return strip;
+    }
+
+    /** This is the TV's home screen: Back never leaves it, it returns to the top. */
+    @Override
+    public void onBackPressed() {
+        goHome();
     }
 
     private void splash() {
@@ -267,10 +353,13 @@ public class HubActivity extends Activity {
     private LinearLayout newsStrip;
 
     private void buildRows(List<Films.Film> curated, List<Films.Film> all) {
-        while (rows.getChildCount() > 3) rows.removeViewAt(3);
+        while (rows.getChildCount() > 4) rows.removeViewAt(4);
         int pw = Ui.dp(this, 150);
+        everything = all;
 
-        LinearLayout movies = Ui.row(this, rows, Lang.both("movies"));
+        int at = rows.getChildCount();
+        LinearLayout movies = section(rows, "THALAIVAR CINEMA  ·  " + Lang.both("movies"));
+        cinemaAnchor = rows.getChildAt(at);
         View first = null;
         for (Films.Film f : curated) {
             FrameLayout card = Ui.poster(this, f, pw);
@@ -298,6 +387,22 @@ public class HubActivity extends Activity {
                 () -> startActivity(new Intent(this, WallpaperActivity.class)));
         addTile(special, Lang.t("screensaver"), Lang.t("start_saver"), 0xFF1A1208, Ui.GOLD, tw, th,
                 () -> startActivity(new Intent(this, SaverActivity.class)));
+
+        // ENTERTAINMENT: JK Tube first, then every streaming and music app actually installed on this TV
+        at = rows.getChildCount();
+        LinearLayout ent = section(rows, "ENTERTAINMENT");
+        entAnchor = rows.getChildAt(at);
+        addTile(ent, "JK Tube", "Watch · Search · Speak", 0xFF3A0610, 0xFFB71C1C, Ui.dp(this, 240), Ui.dp(this, 135),
+                () -> startActivity(new Intent(this, TubeActivity.class)));
+        android.content.pm.PackageManager pm = getPackageManager();
+        Intent q = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
+        for (android.content.pm.ResolveInfo r : pm.queryIntentActivities(q, 0)) {
+            android.content.pm.ApplicationInfo ai = r.activityInfo.applicationInfo;
+            String g = AppsActivity.group(ai);
+            if (ai.packageName.equals(getPackageName()) || ai.packageName.equals(Ui.YT_TV)
+                    || !("entertainment".equals(g) || "music".equals(g))) continue;
+            Ui.add(ent, appTile(r, pm));
+        }
 
         newsStrip = Ui.row(this, rows, Lang.both("news"));
         fillNewsRow();
@@ -331,7 +436,92 @@ public class HubActivity extends Activity {
         TextView attr = Ui.text(this, Lang.t("attribution") + "  ·  " + Lang.t("news_attr"), 12, 0x88FFFFFF, false);
         attr.setPadding(Ui.dp(this, 48), Ui.dp(this, 20), Ui.dp(this, 48), 0);
         rows.addView(attr);
+        firstCard = first;
+        refreshPersonal();
         if (first != null) first.requestFocus();
+    }
+
+    /** An installed app as a tile with its own banner (or icon and name). */
+    private FrameLayout appTile(android.content.pm.ResolveInfo r, android.content.pm.PackageManager pm) {
+        String pkg = r.activityInfo.packageName;
+        FrameLayout card = Ui.card(this, Ui.dp(this, 240), Ui.dp(this, 135), false);
+        android.graphics.drawable.Drawable banner = r.activityInfo.loadBanner(pm);
+        if (banner == null) banner = r.activityInfo.applicationInfo.loadBanner(pm);
+        ImageView iv = new ImageView(this);
+        if (banner != null) {
+            iv.setImageDrawable(banner);
+            iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            Ui.underRim(card, iv, new FrameLayout.LayoutParams(-1, -1));
+        } else {
+            card.setBackground(Ui.round(Ui.gradientColour(pkg), Ui.dp(this, 10), 0, 0));
+            iv.setImageDrawable(r.loadIcon(pm));
+            Ui.underRim(card, iv, new FrameLayout.LayoutParams(Ui.dp(this, 64), Ui.dp(this, 64), Gravity.CENTER));
+        }
+        card.setOnClickListener(v -> Ui.launchApp(this, pkg));
+        return card;
+    }
+
+    /**
+     * MY MOVIES and CONTINUE WATCHING, rebuilt each time the dashboard comes back: videos stopped part-way
+     * (they resume where they were), favourite films and recently opened films.
+     */
+    private void refreshPersonal() {
+        if (personal == null) return;
+        personal.removeAllViews();
+        myAnchor = null;
+        List<String[]> watching = prefs.continueWatching();
+        if (!watching.isEmpty()) {
+            LinearLayout cw = section(personal, "CONTINUE WATCHING");
+            for (String[] w : watching) {
+                FrameLayout card = Ui.card(this, Ui.dp(this, 260), Ui.dp(this, 146), false);
+                ImageView th = Ui.image(this);
+                Ui.underRim(card, th, new FrameLayout.LayoutParams(-1, -1));
+                Img.into(th, "https://i.ytimg.com/vi/" + w[0] + "/hqdefault.jpg", Ui.dp(this, 260));
+                TextView cap = Ui.text(this, "▶  " + (w[1].isEmpty() ? "Resume" : w[1]), 14, Ui.TEXT, false);
+                cap.setMaxLines(2);
+                cap.setEllipsize(TextUtils.TruncateAt.END);
+                cap.setBackground(Ui.gradient(0x00000000, 0xE6000000, GradientDrawable.Orientation.TOP_BOTTOM));
+                cap.setPadding(Ui.dp(this, 10), Ui.dp(this, 18), Ui.dp(this, 10), Ui.dp(this, 8));
+                Ui.underRim(card, cap, new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM));
+                card.setOnClickListener(v -> TubeActivity.play(this, w[0], w[1]));
+                Ui.add(cw, card);
+            }
+        }
+        java.util.Map<Long, Films.Film> byId = new java.util.HashMap<>();
+        for (Films.Film f : everything) byId.put(f.id, f);
+        for (Films.Film f : films) if (f.id > 0) byId.put(f.id, f);
+        List<Films.Film> favs = new ArrayList<>();
+        for (String s : prefs.set("fav_movies")) {
+            try {
+                Films.Film f = byId.get(Long.parseLong(s));
+                if (f != null) favs.add(f);
+            } catch (NumberFormatException ignored) {
+                // skip
+            }
+        }
+        List<Films.Film> recent = new ArrayList<>();
+        for (Long id : prefs.recentMovies()) {
+            Films.Film f = byId.get(id);
+            if (f != null) recent.add(f);
+        }
+        if (!favs.isEmpty() || !recent.isEmpty()) {
+            int at = personal.getChildCount();
+            if (!favs.isEmpty()) {
+                LinearLayout fr = section(personal, "MY MOVIES  ·  ★ " + Lang.t("favourites"));
+                for (Films.Film f : favs) addPoster(fr, f);
+            }
+            if (!recent.isEmpty()) {
+                LinearLayout rr = section(personal, (favs.isEmpty() ? "MY MOVIES  ·  " : "") + "RECENTLY VIEWED");
+                for (Films.Film f : recent) addPoster(rr, f);
+            }
+            myAnchor = personal.getChildAt(at);
+        }
+    }
+
+    private void addPoster(LinearLayout strip, Films.Film f) {
+        FrameLayout card = Ui.poster(this, f, Ui.dp(this, 130));
+        card.setOnClickListener(v -> openMovie(f));
+        Ui.add(strip, card);
     }
 
     private View.OnFocusChangeListener chain(View.OnFocusChangeListener base, Films.Film f) {
@@ -391,12 +581,20 @@ public class HubActivity extends Activity {
             startActivity(new Intent(this, JarvisActivity.class));
             return true;
         }
+        // Up with nothing above the focused card (the menu is hidden while scrolled): back to the top menu
+        if (keyCode == android.view.KeyEvent.KEYCODE_DPAD_UP && nav != null && nav.getChildCount() > 0 && !nav.hasFocus()) {
+            sv.smoothScrollTo(0, 0);
+            showHeader(true);
+            nav.getChildAt(0).requestFocus();
+            return true;
+        }
         return super.onKeyDown(keyCode, e);
     }
 
+    /** Home pressed while the dashboard is up: back to the top, nothing rebuilt. */
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
-        recreate();
+        goHome();
     }
 }

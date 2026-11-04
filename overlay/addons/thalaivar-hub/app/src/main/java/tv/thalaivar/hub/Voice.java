@@ -26,9 +26,32 @@ final class Voice {
     private static final int RATE = 24000;
     private static AudioTrack track;
 
-    /** Blocking: the reply as 16-bit mono PCM at 24 kHz, or null. Call off the main thread. */
-    static byte[] natural(String text) {
+    /**
+     * Blocking: the reply as 16-bit mono PCM at 24 kHz, or null. Each phrase is kept on the TV after the first
+     * time, so "Opening Netflix" and the other everyday replies play at once in the human voice.
+     */
+    static byte[] natural(android.content.Context c, String text) {
         if (!Gemini.hasKey() || text == null || text.trim().isEmpty()) return null;
+        java.io.File cached = new java.io.File(new java.io.File(c.getCacheDir(), "voice"), Net.hash(NAME + "|" + text.trim()) + ".pcm");
+        if (cached.exists()) {
+            try (java.io.FileInputStream in = new java.io.FileInputStream(cached)) {
+                return Net.readAll(in);
+            } catch (Exception ignored) {
+                // fetch it again below
+            }
+        }
+        byte[] pcm = fetch(text);
+        if (pcm != null && pcm.length < 2_000_000) {
+            try {
+                Net.write(cached, pcm);
+            } catch (Exception ignored) {
+                // still played, just not kept
+            }
+        }
+        return pcm;
+    }
+
+    private static byte[] fetch(String text) {
         try {
             JSONObject body = new JSONObject();
             body.put("contents", new JSONArray().put(new JSONObject().put("parts",

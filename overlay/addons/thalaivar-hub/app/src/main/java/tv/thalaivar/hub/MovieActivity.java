@@ -110,6 +110,7 @@ public class MovieActivity extends Activity {
 
     private void show(JSONObject m, JSONObject images) {
         col.removeAllViews();
+        prefs.addRecentMovie(id);
         String title = m.optString("title");
         String tamil = getIntent().getStringExtra("tamil");
         TextView t = Ui.gold(this, Lang.tamil && tamil != null ? tamil : title, 56);

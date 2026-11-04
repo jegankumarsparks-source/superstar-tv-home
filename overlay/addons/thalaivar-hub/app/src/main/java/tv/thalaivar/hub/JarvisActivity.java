@@ -424,13 +424,9 @@ public class JarvisActivity extends Activity {
         QuickCommand quick = QuickCommand.parse(text);
         if (quick != null) {
             said.setText(quick.say);
-            orb.setState(FaceView.SPEAKING);
-            if (ttsReady && new Prefs(this).speakReplies()) {
-                tts.setLanguage(new Locale("en", "IN"));
-                tts.speak(quick.say, TextToSpeech.QUEUE_FLUSH, null, "jarvis");
-            } else {
-                main.postDelayed(() -> orb.setState(FaceView.HAPPY), 600);
-            }
+            // the action happens at once; the human voice confirms it (instant after the first time, from the cache)
+            if (new Prefs(this).speakReplies()) speak(quick.say, false);
+            else main.postDelayed(() -> orb.setState(FaceView.HAPPY), 600);
             Gemini.Reply r = new Gemini.Reply();
             r.action = quick.action;
             r.query = quick.query;
@@ -506,14 +502,10 @@ public class JarvisActivity extends Activity {
             Voice.pickBestVoice(tts, tamil ? new Locale("ta", "IN") : new Locale("en", "IN"));
             tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "jarvis");
         };
-        if (fastVoice) {
-            fallback.run();
-            return;
-        }
-        // the natural voice gets 4 s at most; after that the TV's own voice reads it
-        main.postDelayed(fallback, 4000);
+        // always the human voice; the TV's own voice only if Google's voice service doesn't answer within 10 s
+        main.postDelayed(fallback, 10000);
         Ui.WORK.execute(() -> {
-            byte[] pcm = Voice.natural(text);
+            byte[] pcm = Voice.natural(this, text);
             main.post(() -> {
                 if (done[0] || turn != speechTurn || isFinishing() || isDestroyed()) return;
                 if (pcm == null) {
@@ -569,15 +561,24 @@ public class JarvisActivity extends Activity {
     private void playFirst(String q) {
         if (q.isEmpty()) return;
         if (!YtApi.hasKey()) {
-            startActivity(new Intent(this, TubeActivity.class).putExtra("q", q));
+            // no YouTube key: a film's official trailer still plays straight away in JK Tube
+            Ui.WORK.execute(() -> {
+                YtApi.Video v = YtApi.filmTrailer(this, q);
+                main.post(() -> {
+                    if (v != null) TubeActivity.play(this, v.id, v.title);
+                    else startActivity(new Intent(this, TubeActivity.class).putExtra("q", q));
+                });
+            });
             return;
         }
         Ui.WORK.execute(() -> {
             try {
-                List<YtApi.Video> l = YtApi.search(this, q, 1);
+                // the top 5 matches: the first plays at once, the others are backups if one won't play here
+                List<YtApi.Video> l = YtApi.search(this, q, 5);
                 if (!l.isEmpty()) {
-                    YtApi.Video v = l.get(0);
-                    main.post(() -> TubeActivity.play(this, v.id, v.title));
+                    java.util.ArrayList<String> queue = TubeActivity.ids(l);
+                    String title = l.get(0).title;
+                    main.post(() -> TubeActivity.playQueue(this, queue, title));
                     return;
                 }
             } catch (Exception ignored) {

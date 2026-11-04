@@ -118,7 +118,8 @@ final class Prefs {
      * "ask", or an app's package.
      */
     String player() {
-        return p.getString("player", "auto");
+        // JK Tube's own full-screen player for every video, unless the owner picks another app in Settings
+        return p.getString("player", "jktube");
     }
 
     /** "auto" resolved to what is installed now. */
@@ -181,6 +182,75 @@ final class Prefs {
 
     void setSpeakReplies(boolean on) {
         p.edit().putBoolean("speak", on).apply();
+    }
+
+    /** Films opened most recently, newest first (TMDB ids), for My Movies. */
+    List<Long> recentMovies() {
+        List<Long> l = new ArrayList<>();
+        for (String s : p.getString("recent_movies", "").split(",")) {
+            try {
+                if (!s.isEmpty()) l.add(Long.parseLong(s));
+            } catch (NumberFormatException ignored) {
+                // skip
+            }
+        }
+        return l;
+    }
+
+    void addRecentMovie(long id) {
+        List<Long> l = recentMovies();
+        l.remove(id);
+        l.add(0, id);
+        while (l.size() > 15) l.remove(l.size() - 1);
+        StringBuilder b = new StringBuilder();
+        for (Long x : l) b.append(b.length() == 0 ? "" : ",").append(x);
+        p.edit().putString("recent_movies", b.toString()).apply();
+    }
+
+    /** Videos stopped part-way: {id, title, seconds}, newest first, for Continue watching. */
+    List<String[]> continueWatching() {
+        List<String[]> l = new ArrayList<>();
+        try {
+            org.json.JSONArray a = new org.json.JSONArray(p.getString("watching", "[]"));
+            for (int i = 0; i < a.length(); i++) {
+                org.json.JSONObject o = a.getJSONObject(i);
+                l.add(new String[]{o.getString("id"), o.optString("title"), String.valueOf(o.optInt("at"))});
+            }
+        } catch (Exception ignored) {
+            // empty list
+        }
+        return l;
+    }
+
+    /** Where a video was left: kept while it is part-way through, removed near the end. */
+    void saveProgress(String id, String title, int at, int length) {
+        try {
+            org.json.JSONArray old = new org.json.JSONArray(p.getString("watching", "[]"));
+            org.json.JSONArray now = new org.json.JSONArray();
+            boolean keep = at > 20 && (length <= 0 || at < length - 45);
+            if (keep) now.put(new org.json.JSONObject().put("id", id).put("title", title == null ? "" : title).put("at", at));
+            for (int i = 0; i < old.length() && now.length() < 12; i++) {
+                org.json.JSONObject o = old.getJSONObject(i);
+                if (!id.equals(o.optString("id"))) now.put(o);
+            }
+            p.edit().putString("watching", now.toString()).apply();
+        } catch (Exception ignored) {
+            // progress is a convenience
+        }
+    }
+
+    int savedPosition(String id) {
+        for (String[] w : continueWatching()) if (w[0].equals(id)) return Integer.parseInt(w[2]);
+        return 0;
+    }
+
+    /** THALAIVAR TV is the TV's home screen: the Home button and power-on come here. */
+    boolean hubIsHome() {
+        return p.getBoolean("hub_home", true);
+    }
+
+    void setHubIsHome(boolean on) {
+        p.edit().putBoolean("hub_home", on).apply();
     }
 
     String lastWall() {

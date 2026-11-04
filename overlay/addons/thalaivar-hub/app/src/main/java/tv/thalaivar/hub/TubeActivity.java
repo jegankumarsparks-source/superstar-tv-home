@@ -135,7 +135,9 @@ public class TubeActivity extends Activity {
         q = q.trim();
         search.setText(q);
         if (!YtApi.hasKey()) {
-            Ui.youtubeSearch(this, q);
+            // stays in JK Tube: matching a song or video by name needs the free YouTube Data API key
+            status.setText("To find “" + q + "”, JK Tube needs a free YouTube Data API key (youtube.key in secrets.properties). "
+                    + "Thalaivar trailers below play now.");
             return;
         }
         status.setText("Searching “" + q + "”…");
@@ -188,7 +190,9 @@ public class TubeActivity extends Activity {
             t.addView(name);
             if (v.channel != null) t.addView(Ui.label(this, v.channel, 13, Ui.GOLD));
             Ui.underRim(card, t, new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM));
-            card.setOnClickListener(x -> play(this, v.id, v.title));
+            // the chosen video first, then the rest of the row as backups
+            java.util.ArrayList<String> queue = ids(vids.subList(vids.indexOf(v), vids.size()));
+            card.setOnClickListener(x -> playQueue(this, queue, v.title));
             Ui.add(strip, card);
             if (first == null) first = card;
         }
@@ -196,17 +200,23 @@ public class TubeActivity extends Activity {
     }
 
     /** Plays in JK Tube's player, or in the video app the owner picked in Settings. */
+    /** Every video plays in JK Tube's own full-screen player. */
     static void play(Activity a, String id, String title) {
-        String with = new Prefs(a).resolvedPlayer();
-        if ("jktube".equals(with)) {
-            a.startActivity(new Intent(a, PlayerActivity.class).putExtra("id", id).putExtra("title", title));
-            return;
-        }
-        Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com/watch?v=" + id));
-        if (!"ask".equals(with)) i.setPackage(with);
-        if (!Ui.start(a, "ask".equals(with) ? Intent.createChooser(i, "Play with") : i)) {
-            a.startActivity(new Intent(a, PlayerActivity.class).putExtra("id", id).putExtra("title", title));
-        }
+        java.util.ArrayList<String> one = new java.util.ArrayList<>();
+        one.add(id);
+        playQueue(a, one, title);
+    }
+
+    /** The best match first, the rest kept as backups: a video that won't play in JK Tube skips to the next. */
+    static void playQueue(Activity a, java.util.ArrayList<String> ids, String title) {
+        a.startActivity(new Intent(a, PlayerActivity.class).putStringArrayListExtra("queue", ids)
+                .putExtra("id", ids.get(0)).putExtra("title", title).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+    }
+
+    static java.util.ArrayList<String> ids(List<YtApi.Video> vids) {
+        java.util.ArrayList<String> l = new java.util.ArrayList<>();
+        for (YtApi.Video v : vids) l.add(v.id);
+        return l;
     }
 
     private void voice() {

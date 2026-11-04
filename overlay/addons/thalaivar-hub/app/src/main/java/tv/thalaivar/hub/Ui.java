@@ -264,30 +264,14 @@ final class Ui {
         return row;
     }
 
-    /** An official video, in the YouTube app on the TV. */
+    /** An official video, in JK Tube's own full-screen player. */
     static void youtube(Activity a, String key) {
-        // every video in the app goes to the owner's chosen player (SmartTube when installed)
         TubeActivity.play(a, key, "");
     }
 
-    /** A search in the YouTube app, for songs and moments: YouTube decides what is there, nothing is copied here. */
+    /** A search: always inside JK Tube, never handed to another video app. */
     static void youtubeSearch(Activity a, String query) {
-        String with = new Prefs(a).resolvedPlayer();
-        if (with.contains(".")) {
-            // the chosen video app (SmartTube) opens YouTube search links itself
-            Intent r = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com/results?search_query=" + Uri.encode(query)));
-            r.setPackage(with);
-            if (start(a, r)) return;
-        }
-        Intent s = new Intent(Intent.ACTION_SEARCH);
-        s.setPackage(YT_TV);
-        s.putExtra(SearchManager.QUERY, query);
-        s.putExtra("query", query);
-        if (start(a, s)) return;
-        Intent v = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com/results?search_query=" + Uri.encode(query)));
-        v.setPackage(YT_TV);
-        if (start(a, v)) return;
-        toast(a, "YouTube " + Lang.t("not_installed"));
+        a.startActivity(new Intent(a, TubeActivity.class).putExtra("q", query).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
     }
 
     static boolean start(Activity a, Intent i) {

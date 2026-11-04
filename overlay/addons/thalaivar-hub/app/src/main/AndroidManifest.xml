@@ -57,6 +57,12 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
+            <!-- THALAIVAR TV is the TV's home screen: the Home button and power-on open this dashboard. -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
             <!-- Clean Your TV module card (docs/specs/card.md): shown as "Thalaivar TV" once the owner says Show. -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -74,6 +80,8 @@
         <activity android:name=".SettingsActivity" android:exported="false" android:screenOrientation="landscape" />
         <activity android:name=".SaverActivity" android:exported="false" android:screenOrientation="landscape" />
         <activity android:name=".PhotoActivity" android:exported="false" android:screenOrientation="landscape" />
+        <activity android:name=".SearchActivity" android:exported="false" android:screenOrientation="landscape"
+            android:windowSoftInputMode="stateVisible|adjustPan" />
         <activity android:name=".PlayerActivity" android:exported="false" android:screenOrientation="landscape"
             android:configChanges="orientation|screenSize|keyboardHidden" />
 

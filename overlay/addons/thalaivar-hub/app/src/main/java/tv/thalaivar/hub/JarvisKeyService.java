@@ -57,11 +57,29 @@ public class JarvisKeyService extends AccessibilityService {
      * remote service opens Google's voice screen directly. When that screen comes up and the switch is On,
      * it is closed and J.A.R.V.I.S opens and listens instead, through the same remote microphone.
      */
+    /** The TV's other home screens; whenever one comes up, THALAIVAR TV's dashboard takes its place. */
+    private static final String GOOGLE_HOME = "com.google.android.apps.tv.launcherx";
+    private static final String CLEANYOURTV_HOME = "com.gathin.tvhome";
+    private long lastHome;
+
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
         if (event.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return;
         CharSequence pkg = event.getPackageName();
-        if (pkg == null || !GOOGLE_VOICE.contentEquals(pkg) || !new Prefs(this).jarvisButton()) return;
+        CharSequence cls = event.getClassName();
+        if (pkg == null) return;
+        // Home button, power-on, leaving an app: the stock home appears, and the dashboard replaces it
+        if (cls != null && new Prefs(this).hubIsHome()
+                && ((GOOGLE_HOME.contentEquals(pkg) && cls.toString().contains("HomeActivity"))
+                || (CLEANYOURTV_HOME.contentEquals(pkg) && cls.toString().endsWith("MainActivity")))) {
+            long now = android.os.SystemClock.uptimeMillis();
+            if (now - lastHome < 1500) return;
+            lastHome = now;
+            startActivity(new Intent(this, HubActivity.class)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
+            return;
+        }
+        if (!GOOGLE_VOICE.contentEquals(pkg) || !new Prefs(this).jarvisButton()) return;
         // J.A.R.V.I.S's own listening uses Google's voice engine too: never close anything while it is on screen
         if (JarvisActivity.onScreen) return;
         long now = android.os.SystemClock.uptimeMillis();

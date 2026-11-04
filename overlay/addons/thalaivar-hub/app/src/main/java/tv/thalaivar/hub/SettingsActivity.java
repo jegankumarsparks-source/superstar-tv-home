@@ -46,6 +46,10 @@ public class SettingsActivity extends Activity {
             rot.addView(choice(min + " " + Lang.t("minutes"), prefs.rotateMinutes() == min, () -> prefs.setRotateMinutes(min)));
         }
 
+        LinearLayout home = group("THALAIVAR TV as the TV's home screen (Home button and power-on)");
+        home.addView(choice("On", prefs.hubIsHome(), () -> prefs.setHubIsHome(true)));
+        home.addView(choice("Off", !prefs.hubIsHome(), () -> prefs.setHubIsHome(false)));
+
         LinearLayout jv = group("J.A.R.V.I.S on the remote's mic / search button (any app)");
         jv.addView(choice("On", prefs.jarvisButton(), () -> prefs.setJarvisButton(true)));
         jv.addView(choice("Off", !prefs.jarvisButton(), () -> prefs.setJarvisButton(false)));
@@ -73,19 +77,11 @@ public class SettingsActivity extends Activity {
         clk.addView(choice("On", prefs.saverClock(), () -> prefs.setSaverClock(true)));
         clk.addView(choice("Off", !prefs.saverClock(), () -> prefs.setSaverClock(false)));
 
-        LinearLayout play = group("All videos play with");
-        String pl = prefs.player();
-        play.addView(choice("Auto (SmartTube if installed)", "auto".equals(pl), () -> prefs.setPlayer("auto")));
-        play.addView(choice("JK Tube player", "jktube".equals(pl), () -> prefs.setPlayer("jktube")));
-        play.addView(choice("Ask each time", "ask".equals(pl), () -> prefs.setPlayer("ask")));
-        android.content.Intent probe = new android.content.Intent(android.content.Intent.ACTION_VIEW,
-                android.net.Uri.parse("https://www.youtube.com/watch?v=00000000000"));
-        for (android.content.pm.ResolveInfo r : getPackageManager().queryIntentActivities(probe, 0)) {
-            String pkg = r.activityInfo.packageName;
-            if (pkg.equals(getPackageName()) || play.getChildCount() >= 5) continue;
-            String name = r.loadLabel(getPackageManager()).toString();
-            play.addView(choice(name, pkg.equals(pl), () -> prefs.setPlayer(pkg)));
-        }
+        // every video plays in JK Tube's own full-screen player; there is no other-app choice to make
+        TextView vids = Ui.label(this, "Videos: JK Tube player, full screen · " + (YtApi.hasKey()
+                ? "YouTube key ✓ — any song or video plays by name" : "add youtube.key to play any song or video by name"), 15, Ui.DIM);
+        vids.setPadding(0, Ui.dp(this, 18), 0, 0);
+        page.addView(vids);
 
         LinearLayout more = group(Lang.t("screensaver"));
         more.addView(Ui.button(this, Lang.t("tv_saver_settings"), v -> {

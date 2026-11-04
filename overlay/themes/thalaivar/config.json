@@ -55,8 +55,6 @@
     "com.google.android.youtube.tv",
     "com.google.android.youtube.tvmusic"
   ],
-  "stock_home_redirect": "com.google.android.apps.tv.launcherx",
-  "power_on_home_always": true,
   "home_idle_clock_minutes": 0,
   "back_opens_clock": false,
   "clock_wallpaper": true,

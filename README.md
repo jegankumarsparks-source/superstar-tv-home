@@ -30,6 +30,7 @@ every Android TV).
 | | |
 |---|---|
 | 🏠 **THALAIVAR home theme** | Gold & black cinematic shelf, frosted dock, gold focus glow, "Good morning, Thalaiva" greeting, 12 original 16:9 wallpapers that change with your city's sunrise and sunset, clock screensaver |
+| 🏠 **The TV's main home dashboard** | Home button and power-on open THALAIVAR TV. Top menu: Home, Thalaivar Cinema, My Movies, Apps, YouTube, Entertainment, Jarvis, Settings and 🔍 film search. **Continue watching** (videos resume where you stopped), ★ favourites, recently viewed films, and an Entertainment row with JK Tube and your streaming apps. Full D-pad control; On/Off in Settings |
 | 🎬 **Thalaivar Hub** | Logo reveal, live clock, featured film with crossfading backdrops, **17 lead films + the full filmography** in 3D poster cards |
 | 📖 **Film pages** | Year, runtime, genres, director, music director, cast, official trailers and clips, songs, "Watch on" the streaming apps you have, favourites |
 | 👑 **BAASHA – The Evergreen Emperor** | Black-and-gold celebration zone with stage-light rays, confetti and a fan wall, plus its own screensaver |
@@ -38,7 +39,7 @@ every Android TV).
 | 📰 **Live news engine** | Rajinikanth, Jailer 2, box office, Dharman and the KH x RK film; every headline shows its publisher, age and a **CONFIRMED / REPORTED / RUMOUR** badge; works offline with the saved copy |
 | 🤖 **J.A.R.V.I.S voice assistant** | A floating assistant with its own animated 3D face (an original character): ask anything, "open Netflix", "play Anirudh songs", "latest news". Everyday commands run on the TV in under 2 seconds; questions are answered by Gemini in a natural human voice. Opens from the remote's mic button in any app, with an On/Off switch |
 | 📱 **Phone remote (scan once)** | Scan the QR on the J.A.R.V.I.S panel: talk to J.A.R.V.I.S with your phone's mic, D-pad, volume, play/pause, apps and quick commands, with a live "Connected" light. Stays paired whenever the TV is on |
-| ▶️ **JK Tube** | A TV-first video browser: search bar, voice search, official trailers row, trending and Tamil rows (with a YouTube key), and every video opens in the player you choose — SmartTube when it's installed |
+| ▶️ **JK Tube** | A TV-first video browser: search bar, voice search, official trailers row, trending and Tamil rows (with a YouTube key), and every video plays in JK Tube's own full-screen player; if one can't be embedded, the next match plays |
 | 🖼️ **Full-screen photos** | His portraits and every film's stills, one at a time across the whole screen with a 3D swing between them, slideshow, and ★ to add any picture to the screensaver |
 | 📺 **Apps hub** | Every app on your TV, auto-sorted into Entertainment, Music, Live TV, Games and Tools; pin your favourites |
 | 🖼️ **Wallpapers & screensavers** | Star film stills for the "Thalaivar TV" and "Baasha" screensavers: crossfade, slow zoom, clock and date |

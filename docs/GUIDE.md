@@ -144,8 +144,13 @@ and the hub **next to your current Home**, pushes the theme and checks that ever
 powershell -ExecutionPolicy Bypass -File cleanyourtv\tools\thalaivar\make-home.ps1 -TvHost <your TV's IP>
 ```
 
-It asks you to type **YES**, points Home at THALAIVAR TV and never disables your TV's own launcher.
-On some Google TVs the setup wizard holds on to Home; the script tells you, and nothing changes.
+It asks you to type **YES**, points Home at the THALAIVAR TV dashboard and never disables your TV's own launcher.
+On some Google TVs the setup wizard or the stock launcher holds on to Home; the script tells you, and nothing changes.
+
+**The way that works on every Google TV:** TV **Settings → Accessibility → J.A.R.V.I.S remote button → On**.
+With it on, whenever the TV's own home screen comes up (Home button, power-on, leaving an app), the dashboard
+opens in its place. It reads only window changes and its few keys, never screen content. Switch it off any time in
+the hub's **Settings → THALAIVAR TV as the TV's home screen**. Reinstalling the app can turn the service off: switch it on again.
 
 ## 7. Personalise
 
