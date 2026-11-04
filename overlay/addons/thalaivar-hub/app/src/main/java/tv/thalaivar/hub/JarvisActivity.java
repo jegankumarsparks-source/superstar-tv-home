@@ -260,8 +260,10 @@ public class JarvisActivity extends Activity {
                     : android.speech.SpeechRecognizer.createSpeechRecognizer(this);
             recognizer.setRecognitionListener(new android.speech.RecognitionListener() {
                 @Override public void onReadyForSpeech(Bundle p) {
+                    main.removeCallbacks(stalled);
+                    stalls = 0;
                     orb.setState(FaceView.LISTENING);
-                    heard.setText("🎤 Listening… speak now");
+                    heard.setText("🎤 Listening… hold the mic button while you speak");
                 }
                 @Override public void onBeginningOfSpeech() {
                     gotSpeech = true;
@@ -300,7 +302,12 @@ public class JarvisActivity extends Activity {
                     if (!use.isEmpty()) handle(use);
                     else micTrouble(android.speech.SpeechRecognizer.ERROR_NO_MATCH);
                 }
-                @Override public void onError(int error) { micTrouble(error); }
+                @Override public void onError(int error) {
+                    // the engine complaining about our own restart (cancel, then start) is not a real failure
+                    if ((error == android.speech.SpeechRecognizer.ERROR_CLIENT || error == android.speech.SpeechRecognizer.ERROR_RECOGNIZER_BUSY)
+                            && android.os.SystemClock.uptimeMillis() - restartedAt < 1000) return;
+                    micTrouble(error);
+                }
                 @Override public void onEvent(int type, Bundle p) { }
             });
         }
@@ -315,6 +322,7 @@ public class JarvisActivity extends Activity {
         i.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1600L);
         orb.setState(FaceView.LISTENING);
         heard.setText("Starting the mic…");
+        restartedAt = android.os.SystemClock.uptimeMillis();
         recognizer.cancel();
         gotSpeech = false;
         gotPartial = false;
@@ -322,7 +330,28 @@ public class JarvisActivity extends Activity {
         listeningNow = true;
         quiet(true);
         recognizer.startListening(i);
+        main.removeCallbacks(stalled);
+        main.postDelayed(stalled, 1800);
     }
+
+    /** When listening was last (re)started on purpose. */
+    private long restartedAt;
+
+    /** Restarts done for an engine that never got ready; reset once it does. */
+    private int stalls;
+
+    /**
+     * Google's engine on this TV sometimes never starts while its own "not available" screen is still closing:
+     * no ready, no error. After 1.8 s it gets a fresh start (twice at most) instead of leaving J.A.R.V.I.S deaf.
+     */
+    private final Runnable stalled = () -> {
+        if (!this.listeningNow || isFinishing() || stalls >= 2) return;
+        stalls++;
+        this.listeningNow = false;
+        if (this.recognizer != null) this.recognizer.destroy();
+        this.recognizer = null;
+        listen();
+    };
 
     private android.media.AudioFocusRequest focus;
 
@@ -354,6 +383,7 @@ public class JarvisActivity extends Activity {
 
     /** What went wrong, in words the person can act on. */
     private void micTrouble(int error) {
+        main.removeCallbacks(stalled);
         listeningNow = false;
         quiet(false);
         orb.setState(FaceView.IDLE);
@@ -389,7 +419,7 @@ public class JarvisActivity extends Activity {
             case android.speech.SpeechRecognizer.ERROR_NO_MATCH:
             case android.speech.SpeechRecognizer.ERROR_SPEECH_TIMEOUT:
                 why = gotSpeech ? "I heard you but couldn't make out the words. Try again, a little slower."
-                        : "No sound reached me. Speak a little louder, facing the TV — or use the phone remote.";
+                        : "No sound reached me. Hold the mic button down the whole time you speak, then let go.";
                 break;
             case android.speech.SpeechRecognizer.ERROR_AUDIO:
                 why = "The microphone didn't open. Press the mic button again.";
@@ -458,6 +488,13 @@ public class JarvisActivity extends Activity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         if (intent.getBooleanExtra("over_google", false)) coverGoogle();
+        // the mic button pressed again: always a fresh listen, even if an old one looks stuck
+        if (intent.getBooleanExtra("hold", false) && intent.getStringExtra("q") == null && Gemini.hasKey()) {
+            listeningNow = false;
+            stalls = 0;
+            listen();
+            return;
+        }
         String q = intent.getStringExtra("q");
         if (q != null) handle(q);
         else if (Gemini.hasKey() && !listeningNow) listen();
